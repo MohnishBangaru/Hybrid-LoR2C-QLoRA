@@ -90,7 +90,7 @@ class Prompter(object):
 #TODO: Create Trainer Funciton & executable prototype for lor2c llama
 def train(
     # model/data params
-    base_model: str = "huggyllama/llama-7b",  # the only required argument
+    base_model: str = "TinyLlama/TinyLlama-1.1B-Chat-v0.6",  # the only required argument
     data_path: str = "yahma/alpaca-cleaned",
     output_dir: str = "./lora-alpaca",
     # training hyperparams
@@ -190,16 +190,7 @@ def train(
         os.environ["WANDB_LOG_MODEL"] = wandb_log_model
     set_seed(seed)
 
-    Llama_Lora_Layers = LlamaLoRALayer(4096,4096)
-
-    model = LlamaForCausalLMWithLoR2C.from_pretrained(
-        base_model,
-        # load_in_8bit=True,
-        torch_dtype=torch.float16,
-        device_map=device_map,
-        use_safetensors=True,
-        llama_lora_layers=Llama_Lora_Layers
-    )
+    
 
     tokenizer = LlamaTokenizer.from_pretrained(base_model)
 
@@ -256,68 +247,56 @@ def train(
             ]  # could be sped up, probably
         return tokenized_full_prompt
 
-    model = prepare_model_for_int8_training(model)
+    
 
+    # Load pretrained model
+    model = LlamaForCausalLMWithLoR2C.from_pretrained(
+        base_model,
+        torch_dtype=torch.float16,
+        device_map=device_map,
+        use_safetensors=True,
+        llama_lora_layers=None  
+    )
+    
+    hidden_size = model.config.hidden_size
+    
+    if hidden_size <= 2048:  
+        lor2c_r = 4
+        lor2c_alpha = 8
+    else:  
+        lor2c_r = 16
+        lor2c_alpha = 32
+    
+    Llama_Lora_Layers = LlamaLoRALayer(hidden_size, hidden_size)
+    model.lor2c_module = Llama_Lora_Layers  
+    
     if mode == "base":
-        print(f"Using base, lora_r :{lora_r}")
         config = LoraConfig(
-            r=lora_r,
-            lora_alpha=lora_alpha,
+            r=lor2c_r,
+            lora_alpha=lor2c_alpha,
             target_modules=lora_target_modules,
             lora_dropout=lora_dropout,
             bias="none",
             task_type="CAUSAL_LM",
         )
-
     elif mode == "lor2c":
-        print(f"Using lor2c, lora_r :{lora_r}")
         config = MSLoraConfig(
-            r=lora_r,
-            lora_alpha=lora_alpha,
+            r=lor2c_r,
+            lora_alpha=lor2c_alpha,
             target_modules=lora_target_modules,
             lora_dropout=lora_dropout,
             bias="none",
             task_type="CAUSAL_LM",
         )
-
-    lora_parallel_schedule = [
-    (0, 0, 'floor1'),
-    (1, 1, 'floor2'),
-    (2, 2, 'floor3'),
-    (3, 3, 'floor4'),
-    (4, 4, 'floor5'),
-    (5, 5, 'floor6'),
-    (6, 6, 'floor7'),
-    (7, 7, 'floor8'),
-    (8, 8, 'floor9'),
-    (9, 9, 'floor10'),
-    (10, 10, 'floor11'),
-    (11, 11, 'floor12'),
-    (12, 12, 'floor13'),
-    (13, 13, 'floor14'),
-    (14, 14, 'floor15'),
-    (15, 15, 'floor16'),
-    (16, 16, 'floor17'),
-    (17, 17, 'floor18'),
-    (18, 18, 'floor19'),
-    (19, 19, 'floor20'),
-    (20, 20, 'floor21'),
-    (21, 21, 'floor22'),
-    (22, 22, 'floor23'),
-    (23, 23, 'floor24'),
-    (24, 24, 'floor25'),
-    (25, 25, 'floor26'),
-    (26, 26, 'floor27'),
-    (27, 27, 'floor28'),
-    (28, 28, 'floor29'),
-    (29, 29, 'floor30'),
-    (30, 30, 'floor31'),
-    (31, 31, 'floor32'),
-    ]
-
+    model = prepare_model_for_int8_training(model)
     model = get_peft_model(model, config)
     llama_lora_schedules = {}
+    num_decoder_layers = sum(1 for m in model.modules() if isinstance(m, LlamaDecoderLayer))
 
+    print(f"Number of decoder layers: {num_decoder_layers}")
+    lora_parallel_schedule = [
+    (i, i, f"floor{i+1}") for i in range(num_decoder_layers)
+    ]
     for start_idx, end_idx, adapter_name in lora_parallel_schedule:
         Llama_Lora_Layers.update_layer(adapter_name, lor2c_r, lor2c_alpha, lora_dropout)
         llama_lora_schedules[adapter_name] = {
@@ -436,7 +415,7 @@ def train(
             warmup_steps=100,
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
-            fp16=True,
+            fp16=False,
             logging_steps=10,
             optim="adamw_torch",
             evaluation_strategy="steps" if val_set_size > 0 else "no",

@@ -1,6 +1,7 @@
 """Causal language model loading and attention LoRA via `peft`."""
 
 import logging
+from pathlib import Path
 
 from torch import nn
 
@@ -8,6 +9,7 @@ from lor2c.application.schema import Bundle
 from lor2c.domain.constants import BaseQuantization
 from lor2c.domain.exceptions import ConfigurationError
 from lor2c.domain.schema import AdapterSpec
+from lor2c.infrastructure.huggingface.compat import TransformersCompatibility
 from lor2c.infrastructure.huggingface.context import HubContext
 from lor2c.infrastructure.huggingface.precision import PrecisionMapper
 from lor2c.settings.schema import AdapterSettings, ModelSettings
@@ -27,15 +29,17 @@ class HubCausalModelPort:
         try:
             from transformers import AutoModelForCausalLM
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to load models.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to load models ({exception})."
+            ) from exception
         dtype = self.__precision.dtype(precision=settings.precision)
-        model = AutoModelForCausalLM.from_pretrained(
-            settings.name,
-            revision=settings.revision,
-            torch_dtype=dtype,
-            device_map=settings.device,
-            quantization_config=self.__quantization(settings=settings, dtype=dtype),
-        )
+        options: dict[str, object] = {
+            "revision": settings.revision,
+            "device_map": settings.device,
+            "quantization_config": self.__quantization(settings=settings, dtype=dtype),
+            TransformersCompatibility().dtype_keyword(): dtype,
+        }
+        model = AutoModelForCausalLM.from_pretrained(settings.name, **options)
         model.config.use_cache = False
         self.__context.tokenizer()
         return Bundle(
@@ -51,7 +55,9 @@ class HubCausalModelPort:
         try:
             from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to apply LoRA.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to apply LoRA ({exception})."
+            ) from exception
         configuration = LoraConfig(
             r=spec.rank,
             lora_alpha=int(spec.alpha),
@@ -70,6 +76,19 @@ class HubCausalModelPort:
         LOGGER.info("Applied LoRA", extra={"ctx_rank": spec.rank, "ctx_targets": settings.targets})
         return Bundle(model=adapted, hidden=bundle.hidden, depth=bundle.depth)
 
+    def restore(self, *, bundle: Bundle[nn.Module], path: Path) -> Bundle[nn.Module]:
+        """Wrap the base model with the peft adapter saved at `path`."""
+        try:
+            from peft import PeftModel
+        except ImportError as exception:
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to load adapters ({exception})."
+            ) from exception
+        if not (path / "adapter_config.json").exists():
+            raise ConfigurationError(f"No peft adapter found at {path}.")
+        restored = PeftModel.from_pretrained(bundle.model, str(path))
+        return Bundle(model=restored, hidden=bundle.hidden, depth=bundle.depth)
+
     @staticmethod
     def __quantization(*, settings: ModelSettings, dtype: object) -> object | None:
         if settings.quantization is BaseQuantization.NONE:
@@ -77,7 +96,9 @@ class HubCausalModelPort:
         try:
             from transformers import BitsAndBytesConfig
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to quantize.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to quantize ({exception})."
+            ) from exception
         if settings.quantization is BaseQuantization.INT8:
             eight: object = BitsAndBytesConfig(load_in_8bit=True)
             return eight

@@ -4,7 +4,7 @@ import pytest
 
 from lor2c.domain.exceptions import ConfigurationError
 from lor2c.settings.loader import SettingsLoader
-from lor2c.settings.schema import CausalSettings
+from lor2c.settings.schema import CausalSettings, EvaluationRunSettings
 
 
 class TestSettingsLoader:
@@ -37,3 +37,4 @@ class TestSettingsLoader:
         SettingsLoader().load(path=root / "tinyllama_im.yaml", schema=CausalSettings)
         SettingsLoader().load(path=root / "tinyllama_qlora.yaml", schema=CausalSettings)
         SettingsLoader().load(path=root / "llama2_7b_im.yaml", schema=CausalSettings)
+        SettingsLoader().load(path=root / "evaluate.yaml", schema=EvaluationRunSettings)

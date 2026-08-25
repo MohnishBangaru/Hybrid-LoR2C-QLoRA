@@ -84,7 +84,9 @@ class TorchVisionTrainerPort:
         try:
             from transformers import get_linear_schedule_with_warmup
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to train.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to train ({exception})."
+            ) from exception
         optimizer = GroupedOptimizerFactory(rate=self.__settings.rate, ratio=self.__ratio).build(
             model=model
         )

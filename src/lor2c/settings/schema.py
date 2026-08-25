@@ -184,3 +184,25 @@ class VisionSettings(Strict):
     train: VisionTrainSettings = Field(default_factory=VisionTrainSettings)
     evaluation: EvaluationSettings = Field(default_factory=EvaluationSettings)
     tracking: TrackingSettings = Field(default_factory=TrackingSettings)
+
+
+class BenchmarkSettings(Strict):
+    """Which benchmark tasks to run and how."""
+
+    tasks: tuple[str, ...] = Field(
+        default=("arc_easy", "hellaswag"), min_length=1, description="lm-eval task names."
+    )
+    shots: int = Field(default=0, ge=0, description="Few-shot examples per task.")
+    limit: int | None = Field(default=None, gt=0, description="Cap on samples per task.")
+    batch: int = Field(default=8, gt=0, description="Evaluation batch size.")
+
+
+class EvaluationRunSettings(Strict):
+    """Complete configuration of a benchmark evaluation of a trained run."""
+
+    name: str = Field(min_length=1, description="Evaluation identifier.")
+    run: Path = Field(description="Output directory of the training run to evaluate.")
+    seed: int = Field(default=42, description="Random seed for the harness.")
+    model: ModelSettings
+    benchmark: BenchmarkSettings = Field(default_factory=BenchmarkSettings)
+    tracking: TrackingSettings = Field(default_factory=TrackingSettings)

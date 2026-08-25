@@ -15,7 +15,7 @@ from lor2c.application.ports import (
     Seeder,
     Tracker,
 )
-from lor2c.application.schema import Bundle, Outcome
+from lor2c.application.schema import Bundle, Outcome, ResidualManifest
 from lor2c.domain.adaptation import AdaptationPlanner, AdaptationTimeline
 from lor2c.domain.bank import AdapterBank
 from lor2c.domain.constants import AdapterMode
@@ -88,7 +88,16 @@ class CausalTrainingService:
             )
         if settings.quantization.enabled:
             self.__quantizer.convert(bank=bank)
-        self.__repository.save(model=bundle.model, bank=bank, output=settings.output)
+        manifest = ResidualManifest(
+            width=bank.width,
+            shared=spec if settings.adapter.shared else None,
+            specs={name: spec for name in bank.names},
+            schedule=router.schedule,
+            quantized=settings.quantization.enabled,
+        )
+        self.__repository.save(
+            model=bundle.model, bank=bank, output=settings.output, manifest=manifest
+        )
         return Outcome(name=settings.name, output=settings.output, steps=report.steps)
 
     def __controller(

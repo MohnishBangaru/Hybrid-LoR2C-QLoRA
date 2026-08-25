@@ -14,7 +14,7 @@ class StubService:
 
     def run(self, *, settings: CausalSettings) -> Outcome:
         self.settings = settings
-        return Outcome(name=settings.name, output=settings.output, steps=1)
+        return Outcome(name=settings.name, output=Path("out"), steps=1)
 
 
 class StubFactory:
@@ -26,6 +26,10 @@ class StubFactory:
 
     def vision(self, *, settings: object) -> StubService:
         raise AssertionError("vision should not be built for a causal command")
+
+    def evaluate(self, *, settings: object) -> StubService:
+        self.evaluated = settings
+        return self.service
 
 
 class TestCommandLine:
@@ -40,6 +44,14 @@ class TestCommandLine:
         assert code == 0
         assert factory.service.settings is not None
         assert factory.service.settings.name == "cli"
+
+    def test_evaluate_command_dispatches_to_evaluation_service(self, tmp_path: Path) -> None:
+        config = tmp_path / "eval.yaml"
+        config.write_text("name: e\nrun: outputs/x\nmodel: {name: m}\n")
+        factory = StubFactory()
+        code = self.__command(factory=factory).execute(argv=["evaluate", str(config)])
+        assert code == 0
+        assert factory.evaluated.name == "e"
 
     def test_invalid_settings_return_nonzero(self, tmp_path: Path) -> None:
         config = tmp_path / "run.yaml"

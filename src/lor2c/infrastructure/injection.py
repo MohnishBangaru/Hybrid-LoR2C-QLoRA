@@ -11,7 +11,11 @@ from lor2c.domain.schema import AdapterSpec
 
 
 class LinearInjector:
-    """Wraps every `nn.Linear` whose name ends with a target suffix in an `AdaptedLinear`."""
+    """Wraps every `nn.Linear` whose name ends with a target suffix in an `AdaptedLinear`.
+
+    Adapters are kept in float32 regardless of the base dtype so mixed-precision training can
+    scale their gradients; `AdaptedLinear` casts activations in and the delta back out.
+    """
 
     def inject(
         self,
@@ -35,7 +39,7 @@ class LinearInjector:
                 output_width=module.out_features,
                 spec=spec,
                 generator=generator,
-            ).to(device=module.weight.device, dtype=module.weight.dtype)
+            ).to(device=module.weight.device, dtype=torch.float32)
             self.__replace(
                 model=model, name=name, replacement=AdaptedLinear(base=module, adapter=adapter)
             )

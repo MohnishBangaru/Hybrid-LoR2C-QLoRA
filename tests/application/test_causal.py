@@ -75,6 +75,11 @@ class TestCausalTrainingService:
         router = ports["router"].routers[0]
         assert router.bank.names == ("floor1", "floor2", "floor3")
         assert ports["repository"].banks == [router.bank]
+        manifest = ports["repository"].manifests[0]
+        assert manifest is not None
+        assert set(manifest.specs) == {"floor1", "floor2", "floor3"}
+        assert manifest.schedule == router.schedule
+        assert manifest.quantized is False
         assert outcome.steps == 7
         assert outcome.output == Path("out/unit")
 

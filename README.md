@@ -33,8 +33,8 @@ The paper's variants ([arXiv 2503.00572](https://arxiv.org/abs/2503.00572)) are 
 | Variant | Config | Mechanism |
 |---|---|---|
 | ShareLoR2C | `adapter.shared: true` | one down projection `A` shared by every layer, per-layer `B` |
-| MergeLoR2C | `adaptation.merges: N` | the adjacent pair with the least concentrated spectrum (SFS) is merged into one adapter spanning both layers |
-| InjectLoR2C | `adaptation.injections: N` | the most concentrated single-layer adapter is removed and that layer's attention LoRA is unfrozen |
+| MergeLoR2C | `adaptation.merges: N` | the adjacent pair with the lowest information content (minimum SFS) is merged into one adapter spanning both layers, keeping the richer member's weights |
+| InjectLoR2C | `adaptation.injections: N` | the single-layer adapter with the lowest SFS is removed and that layer's half-rank attention LoRA is unfrozen |
 | IMLoR2C | both | merge + inject, spread over the first quarter of training |
 
 Modern LoRA practice is layered on top: `model.quantization: nf4` loads the frozen base in 4-bit

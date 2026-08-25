@@ -53,7 +53,7 @@ class AdaptationController:
         injections = self.__injections.due(epoch=epoch)
         if merges == 0 and injections == 0:
             return
-        scores = self.__spectrum.score(bank=self.__router.bank)
+        scores = self.__spectrum.scores(bank=self.__router.bank)
         for _ in range(merges):
             self.__merge(scores=scores)
         for _ in range(injections):
@@ -67,12 +67,14 @@ class AdaptationController:
         bank: AdapterBank = self.__router.bank
         schedule = self.__router.schedule.merged(first=choice.first, second=choice.second)
         joined = schedule.entry(name=f"{choice.first}+{choice.second}").name
-        bank.remove(name=choice.second)
-        bank.rename(old=choice.first, new=joined)
+        dropped = choice.second if choice.keep == choice.first else choice.first
+        bank.remove(name=dropped)
+        bank.rename(old=choice.keep, new=joined)
         self.__router.reschedule(schedule=schedule)
         self.__merged += 1
         LOGGER.info(
-            "Merged adapters", extra={"ctx_first": choice.first, "ctx_second": choice.second}
+            "Merged adapters",
+            extra={"ctx_first": choice.first, "ctx_second": choice.second, "ctx_keep": choice.keep},
         )
 
     def __inject(self, *, scores: dict[str, float]) -> None:

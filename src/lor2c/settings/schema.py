@@ -60,7 +60,9 @@ class AdaptationSettings(Strict):
 
     merges: int = Field(default=0, ge=0, description="MergeLoR2C: adjacent pairs to merge.")
     injections: int = Field(default=0, ge=0, description="InjectLoR2C: adapters to swap for LoRA.")
-    top: int | None = Field(default=None, gt=0, description="Top-k singular values for SFS.")
+    top: int | None = Field(
+        default=None, gt=0, description="k for SFS = 1 - top_k/total; defaults to rank // 2."
+    )
     span: int = Field(default=4, ge=2, description="Maximum layers one merged adapter may cover.")
 
     @property

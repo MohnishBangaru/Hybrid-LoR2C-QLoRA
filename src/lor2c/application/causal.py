@@ -67,7 +67,8 @@ class CausalTrainingService:
     def __execute(self, *, settings: CausalSettings) -> Outcome:
         bundle = self.__models.load(settings=settings.model)
         spec = self.__policy.resolve(hidden_size=bundle.hidden)
-        bundle = self.__models.adapt(bundle=bundle, spec=spec, settings=settings.adapter)
+        attention = spec.halved() if settings.adaptation.injections > 0 else spec
+        bundle = self.__models.adapt(bundle=bundle, spec=attention, settings=settings.adapter)
         split = self.__data.load(settings=settings.data, seed=settings.seed)
 
         bank = self.__build_bank(bundle_hidden=bundle.hidden, depth=bundle.depth, settings=settings)

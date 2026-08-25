@@ -112,6 +112,7 @@ class TestCausalTrainingService:
         )
         assert ports["trainer"].observer is not None
         assert ports["gate"].frozen == 1
+        assert ports["models"].specs[0].rank == 1  # attention LoRA at half the LoR2C rank
 
     def test_merge_only_does_not_freeze_attention(self) -> None:
         ports = self.__ports()

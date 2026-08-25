@@ -46,11 +46,13 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
 
 ## IMLoR2C (merge / inject)
 
-- `FeatureSpaceShape` (domain) scores each adapter by the spectrum of `up @ down` (top-k share or
-  mean singular value, as in the reference implementation).
-- `AdaptationPlanner` (domain) picks the least concentrated adjacent pair to merge and the most
-  concentrated single-layer adapter to inject; `AdaptationTimeline` spreads the events over the
-  first quarter of training (`epochs / 4 / count` interval).
+- `FeatureSpaceShape` (domain) computes SFS = `1 - top_k / total` over the singular values of
+  `up @ down`; low SFS means the update is concentrated in few directions (low information).
+- `AdaptationPlanner` (domain) merges the adjacent pair with the minimum combined SFS, keeping
+  the weights of the member with the higher SFS, and injects the single-layer adapter with the
+  minimum SFS; `AdaptationTimeline` spreads the events over the first quarter of training
+  (`epochs / 4 / count` interval). When injections are scheduled the attention LoRA is created
+  at half the LoR2C rank, as in the paper.
 - `AdaptationController` (application) observes fractional epoch progress through the
   `Observer` port, mutates the `ResidualSchedule` (immutable value object, replaced via
   `ResidualRouter.reschedule`), re-keys the bank, and asks the `AttentionGate` port to release the
@@ -58,10 +60,9 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
   to the observer.
 - Injection requires the attention LoRA to start frozen (`AttentionGate.freeze`), matching the
   reference `LoRAFreezeCallback`.
-- Scoring direction: the paper writes SFS as `1 - top_k/total` and merges the pair with the
-  minimum SFS sum; the reference code computes the proportion `top_k/total` and merges the pair
-  with the minimum proportion sum (injecting the maximum). This package follows the reference
-  code, which produced the published numbers.
+- Scoring direction: this package follows the paper. The reference implementation instead
+  merges the pair with the minimum `top_k/total` (the opposite direction) and copies weights from
+  the lower member; those deviations are not reproduced here.
 
 ## Ports
 

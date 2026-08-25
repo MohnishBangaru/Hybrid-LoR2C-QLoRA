@@ -18,9 +18,9 @@ adapter:
   ratio: 16             # LoRA+: up/B projections learn 16x faster
   dora: true            # DoRA on the attention LoRA (peft)
 adaptation:
-  merges: 4             # MergeLoR2C: merge 4 adjacent adapter pairs (least concentrated first)
-  injections: 4         # InjectLoR2C: swap 4 adapters for attention LoRA (most concentrated first)
-  top: 8                # SFS uses the top-8 singular value share; omit to use the mean
+  merges: 4             # MergeLoR2C: merge the 4 adjacent pairs with the least information (min SFS)
+  injections: 4         # InjectLoR2C: replace the 4 adapters with the least information (min SFS)
+  top: 2                # k in SFS = 1 - top_k/total; omit to use rank // 2
   span: 4               # a merged adapter may cover at most 4 layers
 train:
   epochs: 3

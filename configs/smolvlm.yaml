@@ -1,0 +1,33 @@
+# Low-rank adapter fine-tuning of SmolVLM on anime captions with BLEU early stopping.
+name: smolvlm-lor2c
+seed: 42
+output: outputs/smolvlm-lor2c
+model:
+  name: HuggingFaceTB/SmolVLM-500M-Instruct
+  precision: float16
+data:
+  path: none-yet/anime-captions
+  samples: 100
+  holdout: 0.1
+  length: 512
+  image: 512
+adapter:
+  automatic: false
+  rank: 16
+  alpha: 32
+  dropout: 0.1
+  targets: [q_proj, v_proj]
+train:
+  epochs: 10
+  batch: 4
+  rate: 0.0002
+  warmup: 0.1
+  clip: 1.0
+evaluation:
+  beams: 3
+  tokens: 64
+  patience: 3
+tracking:
+  kind: wandb
+  project: LoR2C-QLoRA
+  run: smolvlm-lor2c-run

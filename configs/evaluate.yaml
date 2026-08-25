@@ -1,0 +1,15 @@
+# Score a trained run with EleutherAI lm-eval. Requires lor2c[huggingface,evaluate].
+# `run` is the training output directory; scores are written to <run>/scores.json.
+name: tinyllama-lor2c-eval
+run: outputs/tinyllama-lor2c
+seed: 42
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6   # must match the training run's model
+  precision: bfloat16
+benchmark:
+  tasks: [arc_easy, arc_challenge, hellaswag, winogrande, piqa]
+  shots: 0
+  limit: null          # set e.g. 200 for a quick pass
+  batch: 8
+tracking:
+  kind: none

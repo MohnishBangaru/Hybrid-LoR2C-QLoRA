@@ -73,21 +73,21 @@ logs and, with `tracking.kind: wandb`, in the W&B project.
 
 ## 5. Evaluating
 
-The paper reports downstream accuracy (Table II average over instruction-following benchmarks)
-and GLUE for RoBERTa. This package currently produces adapters and validation loss; it does not
-yet ship an inference loader that re-attaches the residual bank for benchmark evaluation. To
-score a trained run today:
+```bash
+pip install -e ".[evaluate]"            # EleutherAI lm-eval
+lor2c evaluate configs/evaluate.yaml    # point `run:` at the training output directory
+cat outputs/tinyllama-lor2c/scores.json
+```
 
-1. Load the base model and the peft adapter from `outputs/<name>/model/` with `peft`.
-2. Rebuild the bank: `AdapterBank(width=hidden)`, `register` each name in
-   `residual/manifest.json` with the run's `AdapterSpec`, `load_state_dict` from
-   `residual/adapters.pt`, and attach with `HookRouter(locator=ModuleListLocator()).attach(...)`
-   using `ResidualSchedule` entries reconstructed from the manifest names
-   (`floorA+floorB` spans layers A-1..B-1).
-3. Run `lm-eval` (EleutherAI) or your benchmark against that model object.
+`lor2c evaluate` loads the base model, re-attaches the peft attention adapter from
+`<run>/model/`, rebuilds the residual bank and its final routing from
+`<run>/residual/manifest.json` (including merged spans and injected layers), installs the hooks,
+and runs `lm_eval.simple_evaluate` on the configured tasks. One score per task (`acc_norm` when
+available, else `acc`) is written to `<run>/scores.json` and logged to the tracker.
 
-An `lor2c evaluate` command that does steps 1-3 and calls `lm-eval` is the next planned addition;
-until it exists, treat benchmark numbers as manual.
+To compare variants, evaluate each run directory with the same `benchmark` block and the same
+`seed`; keep `limit: null` for reportable numbers. Runs trained with `quantization.enabled: true`
+(int8-converted residual adapters) cannot be evaluated this way yet.
 
 ## 6. Known differences from the paper
 

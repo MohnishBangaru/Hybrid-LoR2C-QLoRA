@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 
+from lor2c.domain.schema import AdapterSpec, ResidualSchedule
+
 ModelType = TypeVar("ModelType", bound=nn.Module)
 
 
@@ -87,3 +89,37 @@ class Outcome(BaseModel):
     steps: int = Field(ge=0, description="Total optimisation steps.")
     best: float | None = Field(default=None, description="Best validation score, if evaluated.")
     epoch: int | None = Field(default=None, description="Epoch of the best score, if evaluated.")
+
+
+class ResidualManifest(BaseModel):
+    """Everything needed to rebuild a saved residual adapter bank and its routing."""
+
+    model_config = ConfigDict(frozen=True)
+
+    width: int = Field(gt=0, description="Residual stream width.")
+    shared: AdapterSpec | None = Field(
+        default=None, description="Spec of the shared down projection."
+    )
+    specs: dict[str, AdapterSpec] = Field(description="Adapter name to its specification.")
+    schedule: ResidualSchedule = Field(description="Routing plan at the end of training.")
+    quantized: bool = Field(default=False, description="Whether adapters were converted to int8.")
+
+
+class BenchmarkReport(BaseModel):
+    """Scores returned by a benchmark harness."""
+
+    model_config = ConfigDict(frozen=True)
+
+    scores: dict[str, float] = Field(description="Metric name (task/metric) to value.")
+    samples: int = Field(ge=0, description="Total evaluated samples across tasks.")
+
+
+class EvaluationOutcome(BaseModel):
+    """What the evaluation use-case hands back to its caller."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str = Field(description="Run identifier.")
+    output: Path = Field(description="Where the scores were written.")
+    scores: dict[str, float] = Field(description="Benchmark scores.")
+    trainable: int = Field(ge=0, description="Trainable parameters of the loaded adapters.")

@@ -9,11 +9,13 @@ from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from lor2c.application.schema import (
+    BenchmarkReport,
     Bundle,
     EpochReport,
     EvaluationReport,
     Loaders,
     Metrics,
+    ResidualManifest,
     Split,
     TrainingReport,
 )
@@ -22,6 +24,7 @@ from lor2c.domain.schedule import ResidualRouter
 from lor2c.domain.schema import AdapterSpec
 from lor2c.settings.schema import (
     AdapterSettings,
+    BenchmarkSettings,
     CausalDataSettings,
     CausalSettings,
     EvaluationSettings,
@@ -71,6 +74,10 @@ class FakeModelPort:
         self, *, bundle: Bundle[nn.Module], spec: AdapterSpec, settings: AdapterSettings
     ) -> Bundle[nn.Module]:
         self.specs.append(spec)
+        return bundle
+
+    def restore(self, *, bundle: Bundle[nn.Module], path: Path) -> Bundle[nn.Module]:
+        self.restored_from = path
         return bundle
 
 
@@ -174,7 +181,38 @@ class RecordingRepository:
     def __init__(self) -> None:
         self.banks: list[AdapterBank | None] = []
         self.outputs: list[Path] = []
+        self.manifests: list[ResidualManifest | None] = []
+        self.stored: ResidualManifest | None = None
+        self.restored: AdapterBank | None = None
 
-    def save(self, *, model: nn.Module, bank: AdapterBank | None, output: Path) -> None:
+    def save(
+        self,
+        *,
+        model: nn.Module,
+        bank: AdapterBank | None,
+        output: Path,
+        manifest: ResidualManifest | None = None,
+    ) -> None:
         self.banks.append(bank)
         self.outputs.append(output)
+        self.manifests.append(manifest)
+
+    def manifest(self, *, output: Path) -> ResidualManifest | None:
+        return self.stored
+
+    def restore(self, *, output: Path, manifest: ResidualManifest) -> AdapterBank:
+        bank = AdapterBank(width=manifest.width, shared=manifest.shared)
+        for name, spec in manifest.specs.items():
+            bank.register(name=name, spec=spec)
+        self.restored = bank
+        return bank
+
+
+class FakeBenchmark:
+    def __init__(self) -> None:
+        self.attached: bool | None = None
+        self.probe: RecordingRouter | None = None
+
+    def run(self, *, model: nn.Module, settings: BenchmarkSettings, seed: int) -> BenchmarkReport:
+        self.attached = self.probe.attached if self.probe is not None else None
+        return BenchmarkReport(scores={"arc_easy/acc_norm": 0.5}, samples=10)

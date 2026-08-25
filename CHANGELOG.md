@@ -10,6 +10,8 @@
   (`adapter.scaling: stabilized`), LoRA+ learning-rate ratio (`adapter.ratio`) and DoRA on the
   attention LoRA (`adapter.dora`).
 - Add `configs/tinyllama_im.yaml` and `configs/tinyllama_qlora.yaml`.
+- Add `lor2c evaluate`: rebuilds a trained run (peft adapter + residual bank from a
+  self-describing `manifest.json`) and scores it with EleutherAI lm-eval (`lor2c[evaluate]`).
 
 ## 0.1.0 - 2026-08-25
 

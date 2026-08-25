@@ -7,11 +7,13 @@ from typing import Protocol
 from torch import nn
 
 from lor2c.application.schema import (
+    BenchmarkReport,
     Bundle,
     EpochReport,
     EvaluationReport,
     Loaders,
     Metrics,
+    ResidualManifest,
     Split,
     TrainingReport,
 )
@@ -20,6 +22,7 @@ from lor2c.domain.schedule import ResidualRouter
 from lor2c.domain.schema import AdapterSpec
 from lor2c.settings.schema import (
     AdapterSettings,
+    BenchmarkSettings,
     CausalDataSettings,
     CausalSettings,
     EvaluationSettings,
@@ -55,6 +58,10 @@ class CausalModelPort(Protocol):
         self, *, bundle: Bundle[nn.Module], spec: AdapterSpec, settings: AdapterSettings
     ) -> Bundle[nn.Module]:
         """Attach trainable LoRA to the configured target modules."""
+        ...
+
+    def restore(self, *, bundle: Bundle[nn.Module], path: Path) -> Bundle[nn.Module]:
+        """Attach a previously saved attention adapter from `path`."""
         ...
 
 
@@ -122,10 +129,33 @@ class AttentionGate(Protocol):
 
 
 class Repository(Protocol):
-    """Persists trained adapters."""
+    """Persists and restores trained adapters."""
 
-    def save(self, *, model: nn.Module, bank: AdapterBank | None, output: Path) -> None:
+    def save(
+        self,
+        *,
+        model: nn.Module,
+        bank: AdapterBank | None,
+        output: Path,
+        manifest: ResidualManifest | None = None,
+    ) -> None:
         """Write adapter weights and configuration to `output`."""
+        ...
+
+    def manifest(self, *, output: Path) -> ResidualManifest | None:
+        """Read the residual manifest saved under `output`, if any."""
+        ...
+
+    def restore(self, *, output: Path, manifest: ResidualManifest) -> AdapterBank:
+        """Rebuild the residual bank described by `manifest` with its saved weights."""
+        ...
+
+
+class Benchmark(Protocol):
+    """Scores a model on downstream tasks."""
+
+    def run(self, *, model: nn.Module, settings: BenchmarkSettings, seed: int) -> BenchmarkReport:
+        """Evaluate and return per-task scores."""
         ...
 
 

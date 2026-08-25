@@ -73,7 +73,8 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
 | `CausalTrainerPort` | `HubCausalTrainerPort` | `transformers.Trainer` |
 | `Router` | `HookRouter` | forward hooks, context managed |
 | `Quantizer` | `FakeQuantizer` | `torch.ao.quantization` eager QAT |
-| `Repository` | `DiskRepository` | `model/` (peft or trainable state) + `residual/` |
+| `Repository` | `DiskRepository` | `model/` (peft or trainable state) + `residual/` (weights + manifest); `restore` rebuilds the bank |
+| `Benchmark` | `LmEvalBenchmark` | `lm_eval.simple_evaluate` over an in-memory model |
 | `Tracker` | `LogTracker`, `WandbTracker` | selected by `tracking.kind` |
 | `Seeder` | `TorchSeeder` | Python + torch generators |
 | `Observer` | `AdaptationController` (application) | fed by a `TrainerCallback` |

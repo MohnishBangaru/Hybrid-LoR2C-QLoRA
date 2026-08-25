@@ -1,6 +1,7 @@
 """Causal language model loading and attention LoRA via `peft`."""
 
 import logging
+from pathlib import Path
 
 from torch import nn
 
@@ -69,6 +70,17 @@ class HubCausalModelPort:
         adapted.print_trainable_parameters()
         LOGGER.info("Applied LoRA", extra={"ctx_rank": spec.rank, "ctx_targets": settings.targets})
         return Bundle(model=adapted, hidden=bundle.hidden, depth=bundle.depth)
+
+    def restore(self, *, bundle: Bundle[nn.Module], path: Path) -> Bundle[nn.Module]:
+        """Wrap the base model with the peft adapter saved at `path`."""
+        try:
+            from peft import PeftModel
+        except ImportError as exception:
+            raise ConfigurationError("Install lor2c[huggingface] to load adapters.") from exception
+        if not (path / "adapter_config.json").exists():
+            raise ConfigurationError(f"No peft adapter found at {path}.")
+        restored = PeftModel.from_pretrained(bundle.model, str(path))
+        return Bundle(model=restored, hidden=bundle.hidden, depth=bundle.depth)
 
     @staticmethod
     def __quantization(*, settings: ModelSettings, dtype: object) -> object | None:

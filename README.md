@@ -50,6 +50,7 @@ Python 3.11 or newer.
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"                          # package + lint/type/test tooling (CPU)
 pip install -e ".[huggingface,vision,tracking]"  # transformers/peft/datasets, PIL/nltk, wandb
+pip install -e ".[evaluate]"                     # lm-eval for `lor2c evaluate`
 ```
 
 Upstream `peft>=0.10` is used; the patched fork the original prototypes required is no longer
@@ -62,6 +63,7 @@ lor2c causal configs/tinyllama.yaml       # LoR2C + LoRA on TinyLlama / Alpaca-c
 lor2c causal configs/tinyllama_qat.yaml   # same, with QAT on the residual adapters
 lor2c causal configs/tinyllama_im.yaml    # IMLoR2C: merge + inject events, rsLoRA, LoRA+, DoRA
 lor2c causal configs/tinyllama_qlora.yaml # NF4 4-bit base (QLoRA) + LoR2C + DoRA
+lor2c evaluate configs/evaluate.yaml      # lm-eval benchmarks on a trained run -> scores.json
 lor2c vision configs/smolvlm.yaml         # low-rank adapters on SmolVLM anime captions
 lor2c -v causal configs/tinyllama.yaml    # debug logging
 lor2c --help
@@ -93,6 +95,7 @@ with a clear error. The main sections:
 | `quantization` | `enabled`, `backend` | `fbgemm` (x86) or `qnnpack` (ARM) |
 | `evaluation` (vision) | `beams`, `tokens`, `patience` | BLEU-based early stopping |
 | `tracking` | `kind`, `project`, `run` | `none` (JSON logs) or `wandb` |
+| `benchmark` (evaluate) | `tasks`, `shots`, `limit`, `batch` | lm-eval task names |
 
 See [configs/](configs/) for complete, commented examples.
 
@@ -102,7 +105,8 @@ See [configs/](configs/) for complete, commented examples.
 outputs/<run>/
   checkpoints/   transformers.Trainer checkpoints (causal runs)
   model/         peft adapter (adapter_config.json + weights) or trainable state dict
-  residual/      adapters.pt (AdapterBank state) + manifest.json
+  residual/      adapters.pt (AdapterBank state) + manifest.json (specs, final schedule)
+  scores.json    written by `lor2c evaluate`
 ```
 
 Logs are JSON lines on stderr; metric records carry `step` and a `values` map.

@@ -1,6 +1,7 @@
 """Composition root wiring infrastructure adapters into application services."""
 
 from lor2c.application.causal import CausalTrainingService
+from lor2c.application.evaluation import EvaluationService
 from lor2c.application.ports import Quantizer, Tracker
 from lor2c.application.vision import VisionTrainingService
 from lor2c.domain.bank import AdapterBank
@@ -12,6 +13,7 @@ from lor2c.domain.rank import FixedRankPolicy, RankPolicy, WidthRankPolicy
 from lor2c.domain.schema import AdapterSpec
 from lor2c.infrastructure.gate import PatternAttentionGate
 from lor2c.infrastructure.hooks import HookRouter, ModuleListLocator
+from lor2c.infrastructure.huggingface.benchmark import LmEvalBenchmark
 from lor2c.infrastructure.huggingface.captions import HubVisionDataPort
 from lor2c.infrastructure.huggingface.causal import HubCausalModelPort
 from lor2c.infrastructure.huggingface.context import HubContext
@@ -27,7 +29,13 @@ from lor2c.infrastructure.repository import DiskRepository
 from lor2c.infrastructure.seeding import TorchSeeder
 from lor2c.infrastructure.tracking.noop import LogTracker
 from lor2c.infrastructure.tracking.wandb import WandbTracker
-from lor2c.settings.schema import AdapterSettings, CausalSettings, TrackingSettings, VisionSettings
+from lor2c.settings.schema import (
+    AdapterSettings,
+    CausalSettings,
+    EvaluationRunSettings,
+    TrackingSettings,
+    VisionSettings,
+)
 
 
 class ServiceFactory:
@@ -50,6 +58,18 @@ class ServiceFactory:
             seeder=TorchSeeder(),
             policy=self.__policy(settings=settings.adapter),
             gate=PatternAttentionGate(),
+        )
+
+    def evaluate(self, *, settings: EvaluationRunSettings) -> EvaluationService:
+        """Assemble the benchmark evaluation service."""
+        context = HubContext(settings=settings.model)
+        return EvaluationService(
+            models=HubCausalModelPort(context=context, precision=PrecisionMapper()),
+            repository=DiskRepository(),
+            router=HookRouter(locator=ModuleListLocator()),
+            benchmark=LmEvalBenchmark(context=context),
+            tracker=self.__tracker(settings=settings.tracking),
+            seeder=TorchSeeder(),
         )
 
     def vision(self, *, settings: VisionSettings) -> VisionTrainingService:

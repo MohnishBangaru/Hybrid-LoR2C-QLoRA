@@ -38,6 +38,10 @@ experiments stay reproducible and reviewable.
 ## Commits and branches
 
 - Develop on a feature branch; keep `main` releasable.
+- Name branches `<type>/<short-kebab-description>`, where `<type>` is one of
+  `feat`, `fix`, `chore`, `docs`, `refactor`, or `exp` (for experiments) —
+  e.g. `chore/engineering-standards`, `exp/lor2c-rank-sweep`. Do not name
+  branches after tools or assistants used to produce the change.
 - Write imperative, descriptive commit messages
   (`Add QAT conversion for LoR2C adapters`, not `fix stuff`).
 - One logical change per commit where practical.

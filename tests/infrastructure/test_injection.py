@@ -30,7 +30,7 @@ class TestLinearInjector:
         assert torch.allclose(decoder(hidden), baseline)
 
     def test_no_match_is_an_error(self, decoder: TinyDecoder) -> None:
-        with pytest.raises(AdapterError, match="No nn.Linear"):
+        with pytest.raises(AdapterError, match=r"No nn\.Linear"):
             LinearInjector().inject(
                 model=decoder, targets=("k_proj",), spec=AdapterSpec(rank=2, alpha=4)
             )

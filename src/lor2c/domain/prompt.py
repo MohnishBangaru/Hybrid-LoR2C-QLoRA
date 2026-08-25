@@ -38,7 +38,7 @@ class PromptTemplate(BaseModel):
 
     def extract_response(self, *, text: str) -> str:
         """Return the generated response portion of a decoded model output."""
-        head, separator, tail = text.partition(self.response_split)
+        _, separator, tail = text.partition(self.response_split)
         if not separator:
             raise TemplateError(f"Output does not contain response marker '{self.response_split}'.")
         return tail.strip()

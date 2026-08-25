@@ -15,7 +15,6 @@ from lor2c.settings.schema import VisionDataSettings
 class CaptionDataset(Dataset[dict[str, Tensor]]):
     """Builds chat-formatted, label-masked samples from (image, text) rows."""
 
-    ASSISTANT_MARKER = "Assistant:"
     IMAGE = "image"
     TEXT = "text"
     PROMPT_IDS = "prompt_ids"
@@ -66,9 +65,14 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
             max_length=self.__settings.length,
         )
         sample = {key: value.squeeze(0) for key, value in encoded.items()}
-        sample["labels"] = self.__labels(ids=sample["input_ids"])
+        prompt_sample = self.__prompt(messages=messages[:1], image=image)
+        sample["labels"] = self.__labels(
+            ids=sample["input_ids"],
+            mask=sample["attention_mask"],
+            prefix=int(prompt_sample[self.PROMPT_IDS].shape[-1]),
+        )
         if self.__generation:
-            sample.update(self.__prompt(messages=messages[:1], image=image))
+            sample.update(prompt_sample)
         return sample
 
     def __prompt(self, *, messages: list[dict[str, object]], image: object) -> dict[str, Tensor]:
@@ -83,6 +87,15 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
             self.PROMPT_MASK: encoded["attention_mask"].squeeze(0),
         }
 
+    @staticmethod
+    def __labels(*, ids: Tensor, mask: Tensor, prefix: int) -> Tensor:
+        """Ignore padding and the first `prefix` real tokens (the prompt); keep the caption."""
+        labels = ids.clone()
+        labels[mask == 0] = int(Label.IGNORED)
+        positions = torch.nonzero(mask, as_tuple=False).flatten()
+        labels[positions[:prefix]] = int(Label.IGNORED)
+        return labels
+
     def __resize(self, *, image: object) -> object:
         longest = max(image.width, image.height)  # type: ignore[attr-defined]
         if longest <= self.__settings.image:
@@ -94,21 +107,6 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
             (int(image.width * ratio), int(image.height * ratio)),  # type: ignore[attr-defined]
             Image.Resampling.LANCZOS,
         )
-
-    def __labels(self, *, ids: Tensor) -> Tensor:
-        tokenizer = self.__processor.tokenizer  # type: ignore[attr-defined]
-        labels = ids.clone()
-        decoded = tokenizer.decode(ids, skip_special_tokens=False)
-        position = decoded.find(self.ASSISTANT_MARKER)
-        if position >= 0:
-            prefix = tokenizer.encode(
-                decoded[: position + len(self.ASSISTANT_MARKER)], add_special_tokens=False
-            )
-            labels[: len(prefix)] = int(Label.IGNORED)
-        else:
-            labels[: len(labels) // 2] = int(Label.IGNORED)
-        labels[labels == tokenizer.pad_token_id] = int(Label.IGNORED)
-        return labels
 
 
 class HubVisionDataPort:

@@ -1,0 +1,31 @@
+# Python 3.10 recommended.
+#
+# NOTE: the LoR2C Llama prototypes (prototype.py, quantization_prototype.py)
+# additionally require the vendored peft fork, which provides MSLoraConfig and
+# LlamaLoRALayer:
+#   unzip archive.zip && pip install -e peft-0.5.0
+# Do NOT `pip install peft` for those scripts.
+
+torch>=2.0
+transformers==4.31.0
+accelerate==0.22.0
+datasets
+evaluate
+bitsandbytes
+sentencepiece
+scipy
+scikit-learn
+fire
+appdirs
+wandb
+fsspec==2025.3.2
+numpy==1.24.4
+pandas==1.5.3
+pyarrow==10.0.1
+
+# Vision-language experiments (lora-vlm/)
+Pillow
+nltk
+
+# Optional: CIDEr metric for lora-vlm/lora-smolvlm.py
+# pip install git+https://github.com/salaniz/pycocoevalcap

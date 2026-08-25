@@ -1,8 +1,37 @@
-venv/*/**
-peft-0.5.0/*/**
-peft-0.5.0
-templates/*/**
-.idea
-__MACOSX
-templates
-venv
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+
+# --- Vendored / extracted dependencies ---
+peft-0.5.0/
+templates/
+
+# --- Editors & OS ---
+.idea/
+.vscode/
+.DS_Store
+__MACOSX/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Experiment outputs ---
+# (lora-alpaca-qat/ is a released adapter and stays tracked)
+wandb/
+lora-alpaca/
+*_adapter/
+*_adapter_fp16/
+checkpoints/
+runs/
+
+# --- Misc ---
+*.log

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `adapter.mode: residual` (LoR2C residual adapters without attention LoRA), the paper's
+  own configuration, for parameter-matched comparisons against LoRA.
 - Fix: the residual `AdapterBank` is now registered on the host model while hooks are attached,
   so the trainer's optimizer actually updates the LoR2C adapters.
 - Add the paper's variants: ShareLoR2C (`adapter.shared`), MergeLoR2C and InjectLoR2C

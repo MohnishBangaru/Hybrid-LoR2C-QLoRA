@@ -1,0 +1,5 @@
+,arc_easy/acc_norm,hellaswag/acc_norm,piqa/acc_norm,mean,final train loss,final eval loss,adapter params
+lora,0.495,0.535,0.73,0.5867,1.0255,1.023,563200
+lor2c,0.475,0.525,0.715,0.5717,0.9904,0.9857,923648
+share,0.475,0.52,0.725,0.5733,0.9914,0.9867,751616
+im,0.485,0.535,0.73,0.5833,0.995,0.9902,576512

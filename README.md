@@ -89,7 +89,7 @@ with a clear error. The main sections:
 | `model` | `name`, `revision`, `precision`, `device`, `quantization` | `quantization`: `none` / `int8` / `nf4` (QLoRA) |
 | `data` (causal) | `path`, `validation`, `cutoff`, `inputs`, `eos` | hub dataset or local `.json`/`.jsonl` |
 | `data` (vision) | `path`, `samples`, `holdout`, `length`, `image`, `instruction` | |
-| `adapter` | `mode`, `automatic`, `rank`, `alpha`, `dropout`, `targets`, `scaling`, `shared`, `dora`, `ratio` | `scaling: stabilized` = rsLoRA; `shared` = ShareLoR2C; `ratio` = LoRA+ |
+| `adapter` | `mode`, `automatic`, `rank`, `alpha`, `dropout`, `targets`, `scaling`, `shared`, `dora`, `ratio` | `mode`: `base` (LoRA only), `residual` (LoR2C only, the paper's setting), `lor2c` (both); `scaling: stabilized` = rsLoRA; `shared` = ShareLoR2C; `ratio` = LoRA+ |
 | `adaptation` (causal) | `merges`, `injections`, `top`, `span` | MergeLoR2C / InjectLoR2C events (IMLoR2C) |
 | `train` | `epochs`, `batch`, `micro`, `rate`, `warmup`, ... | `batch` must be a multiple of `micro` |
 | `quantization` | `enabled`, `backend` | `fbgemm` (x86) or `qnnpack` (ARM) |
@@ -147,6 +147,15 @@ legacy/            original prototype scripts and the patched peft fork they nee
 - The Hugging Face adapters (`src/lor2c/infrastructure/huggingface/`) have not yet been executed
   end-to-end on a GPU host; running `lor2c causal configs/tinyllama.yaml` there is the next
   validation step.
+
+## Results
+
+First controlled comparison (TinyLlama-1.1B, LoRA vs LoR2C vs ShareLoR2C vs IMLoR2C, Colab T4):
+all LoR2C variants converge about twice as fast and reach 3.5% lower validation loss, and
+IMLoR2C does so at LoRA's parameter budget. Full tables, figures and caveats in
+[docs/RESULTS.md](docs/RESULTS.md).
+
+![validation loss vs parameters](docs/assets/results/efficiency.png)
 
 ## Results (research phase)
 

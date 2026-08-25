@@ -1,0 +1,28 @@
+seed: 42
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6
+  precision: float32
+data:
+  path: yahma/alpaca-cleaned
+  validation: 200
+  cutoff: 128
+train:
+  epochs: 0.05
+  batch: 16
+  micro: 4
+  rate: 0.0003
+  warmup: 10
+  logging: 5
+  evaluation: 40
+  checkpoints: 1
+adapter:
+  mode: lor2c
+  automatic: false
+  rank: 4
+  alpha: 8
+adaptation:
+  merges: 2
+  injections: 2
+  span: 4
+name: im
+output: outputs/im

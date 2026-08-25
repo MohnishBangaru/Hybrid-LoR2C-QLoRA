@@ -1,26 +1,23 @@
-import os
-import logging
-import sys
-from typing import List
-import re
-import fire
-import torch
-import torch.nn as nn
-import transformers
-import numpy as np
-from datasets import load_dataset
-from transformers import LlamaConfig
-from functools import partial
-import json
-"""
-Unused imports:
-import torch.nn as nn
-import bitsandbytes as bnb
+"""LoR2C fine-tuning prototype for Llama-family models on Alpaca-style data.
+
+Requires the vendored ``peft-0.5.0`` fork (see archive.zip / README) which
+provides ``MSLoraConfig`` and ``LlamaLoRALayer``.
 """
 
+import json
+import os
+import os.path as osp
+import re
+import sys
+from functools import partial
+from typing import List, Optional, Union
+
+import fire
+import torch
+import transformers
+from datasets import load_dataset
 from peft import (
     LoraConfig,
-    AdaLoraConfig,
     MSLoraConfig,
     LlamaLoRALayer,
     get_peft_model,
@@ -28,19 +25,16 @@ from peft import (
     prepare_model_for_int8_training,
     set_peft_model_state_dict,
 )
-from transformers import LlamaForCausalLM, LlamaTokenizer, set_seed
-from transformers import TrainerCallback, TrainerState, TrainerControl, Trainer
+from transformers import LlamaForCausalLM, LlamaTokenizer, Trainer, set_seed
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
-class LlamaForCausalLMWithLoR2C(LlamaForCausalLM):
-    def __init__(self, config, llama_lora_layers):
-        # Call the __init__ method of the parent class to ensure that the basic initialization logic of the model remains unchanged
-        super(LlamaForCausalLMWithLoR2C, self).__init__(config)
-        self.lor2c_module = llama_lora_layers
 
-# %%
-import json
-import os.path as osp
-from typing import Union
+
+class LlamaForCausalLMWithLoR2C(LlamaForCausalLM):
+    """Llama causal LM that carries a shared LoR2C module alongside the base weights."""
+
+    def __init__(self, config, llama_lora_layers):
+        super().__init__(config)
+        self.lor2c_module = llama_lora_layers
 
 
 class Prompter(object):
@@ -86,8 +80,6 @@ class Prompter(object):
     def get_response(self, output: str) -> str:
         return output.split(self.template["response_split"])[1].strip()
 
-# %%
-#TODO: Create Trainer Funciton & executable prototype for lor2c llama
 def train(
     # model/data params
     base_model: str = "TinyLlama/TinyLlama-1.1B-Chat-v0.6",  # the only required argument
@@ -108,12 +100,9 @@ def train(
     lora_n: int = 1,
     lora_alpha: int = 16,
     lor2c_alpha: int = 32,
-    sfs_k: int = None,
+    sfs_k: Optional[int] = None,
     lora_dropout: float = 0.05,
-    lora_target_modules: List[str] = [
-        "q_proj",
-        "v_proj",
-    ],
+    lora_target_modules: Optional[List[str]] = None,
     # llm hyperparams
     train_on_inputs: bool = True,  # if False, masks out inputs in loss
     add_eos_token: bool = False,
@@ -123,12 +112,14 @@ def train(
     wandb_run_name: str = "",
     wandb_watch: str = "",  # options: false | gradients | all
     wandb_log_model: str = "",  # options: false | true
-    resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
+    resume_from_checkpoint: Optional[str] = None,  # either training checkpoint or final adapter
     prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
 
     max_merge_count: int = 0,
     max_distribution_count: int = 0,
 ):
+    if lora_target_modules is None:
+        lora_target_modules = ["q_proj", "v_proj"]
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
             f"Training Alpaca-LoRA model with params:\n"
@@ -288,6 +279,8 @@ def train(
             bias="none",
             task_type="CAUSAL_LM",
         )
+    else:
+        raise ValueError(f"Unknown mode {mode!r}; expected 'base' or 'lor2c'.")
     model = prepare_model_for_int8_training(model)
     model = get_peft_model(model, config)
     llama_lora_schedules = {}
@@ -351,7 +344,7 @@ def train(
                 hooks.append(hook)
         return hooks
 
-    hooks = register_hooks(model, Llama_Lora_Layers, llama_lora_schedules)
+    register_hooks(model, Llama_Lora_Layers, llama_lora_schedules)
 
     model.print_trainable_parameters()  # Be more transparent about the % of trainable params.
 
@@ -401,10 +394,6 @@ def train(
         model.is_parallelizable = True
         model.model_parallel = True
 
-    merge_interval=(num_epochs/4/(max_merge_count+0.000000001))
-    distribution_interval=(num_epochs/4/(max_distribution_count+0.000000001))
-    svd_interval=min(merge_interval, distribution_interval)
-
     trainer = Trainer(
         model=model,
         train_dataset=train_data,
@@ -453,6 +442,9 @@ def train(
     print(
         "\n If there's a warning about missing keys above, please disregard :)"
     )
-fire.Fire(train)
+
+
+if __name__ == "__main__":
+    fire.Fire(train)
 
 

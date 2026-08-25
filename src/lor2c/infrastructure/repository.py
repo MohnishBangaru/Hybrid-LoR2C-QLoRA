@@ -16,10 +16,12 @@ LOGGER = logging.getLogger(__name__)
 
 @runtime_checkable
 class Pretrained(Protocol):
-    """Models able to serialise themselves in the Hugging Face layout."""
+    """peft-wrapped models: expose `peft_config` and save only their adapters."""
+
+    peft_config: object
 
     def save_pretrained(self, save_directory: str) -> None:
-        """Write weights and configuration to `save_directory`."""
+        """Write adapter weights and configuration to `save_directory`."""
         ...
 
 

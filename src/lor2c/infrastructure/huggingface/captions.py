@@ -18,6 +18,8 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
     ASSISTANT_MARKER = "Assistant:"
     IMAGE = "image"
     TEXT = "text"
+    PROMPT_IDS = "prompt_ids"
+    PROMPT_MASK = "prompt_mask"
 
     def __init__(
         self,
@@ -26,11 +28,13 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
         processor: object,
         settings: VisionDataSettings,
         normalizer: CaptionNormalizer,
+        generation: bool = False,
     ) -> None:
         self.__rows = rows
         self.__processor = processor
         self.__settings = settings
         self.__normalizer = normalizer
+        self.__generation = generation
 
     def __len__(self) -> int:
         return len(self.__rows)  # type: ignore[arg-type]
@@ -63,7 +67,21 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
         )
         sample = {key: value.squeeze(0) for key, value in encoded.items()}
         sample["labels"] = self.__labels(ids=sample["input_ids"])
+        if self.__generation:
+            sample.update(self.__prompt(messages=messages[:1], image=image))
         return sample
+
+    def __prompt(self, *, messages: list[dict[str, object]], image: object) -> dict[str, Tensor]:
+        """Tokenise the user turn alone with the assistant header appended, for generation."""
+        processor = self.__processor
+        prompt = processor.apply_chat_template(  # type: ignore[attr-defined]
+            messages, add_generation_prompt=True, tokenize=False
+        )
+        encoded = processor(text=prompt, images=image, return_tensors="pt")  # type: ignore[operator]
+        return {
+            self.PROMPT_IDS: encoded["input_ids"].squeeze(0),
+            self.PROMPT_MASK: encoded["attention_mask"].squeeze(0),
+        }
 
     def __resize(self, *, image: object) -> object:
         longest = max(image.width, image.height)  # type: ignore[attr-defined]
@@ -121,6 +139,7 @@ class HubVisionDataPort:
             processor=processor,
             settings=settings,
             normalizer=self.__normalizer,
+            generation=True,
         )
         generator = torch.Generator().manual_seed(self.__seed)
         return Loaders(

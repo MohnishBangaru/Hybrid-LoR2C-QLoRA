@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 import torch
@@ -65,6 +66,8 @@ class TestDiskRepository:
 
     def test_uses_save_pretrained_when_available(self, tmp_path: Path) -> None:
         class Pretrained(nn.Module):
+            peft_config: ClassVar[dict[str, object]] = {"default": object()}
+
             def __init__(self) -> None:
                 super().__init__()
                 self.saved: str | None = None
@@ -75,3 +78,23 @@ class TestDiskRepository:
         model = Pretrained()
         DiskRepository().save(model=model, bank=None, output=tmp_path)
         assert model.saved == str(tmp_path / "model")
+
+    def test_plain_model_with_save_pretrained_saves_only_trainable_weights(
+        self, tmp_path: Path
+    ) -> None:
+        class Base(nn.Module):
+            def __init__(self) -> None:
+                super().__init__()
+                self.frozen = nn.Linear(2, 2)
+                self.frozen.requires_grad_(False)
+                self.adapter = nn.Linear(2, 2)
+                self.saved = False
+
+            def save_pretrained(self, save_directory: str) -> None:
+                self.saved = True
+
+        model = Base()
+        DiskRepository().save(model=model, bank=None, output=tmp_path)
+        assert model.saved is False
+        weights = torch.load(tmp_path / "model" / "adapters.pt")
+        assert set(weights) == {"adapter.weight", "adapter.bias"}

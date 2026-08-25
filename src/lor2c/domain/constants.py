@@ -11,6 +11,7 @@ class AdapterMode(StrEnum):
 
     BASE = "base"
     LOR2C = "lor2c"
+    RESIDUAL = "residual"
 
 
 class Precision(StrEnum):

@@ -35,7 +35,10 @@ class ModelSettings(Strict):
 class AdapterSettings(Strict):
     """Low-rank adapter hyper-parameters."""
 
-    mode: AdapterMode = Field(default=AdapterMode.LOR2C, description="Base LoRA or LoR2C routing.")
+    mode: AdapterMode = Field(
+        default=AdapterMode.LOR2C,
+        description="base: attention LoRA only; lor2c: LoRA + residual; residual: residual only.",
+    )
     rank: int = Field(default=16, gt=0, description="Bottleneck rank.")
     alpha: float = Field(default=32, gt=0, description="Scaling numerator.")
     dropout: float = Field(default=0.05, ge=0, lt=1, description="Adapter input dropout.")

@@ -67,8 +67,13 @@ class CausalTrainingService:
     def __execute(self, *, settings: CausalSettings) -> Outcome:
         bundle = self.__models.load(settings=settings.model)
         spec = self.__policy.resolve(hidden_size=bundle.hidden)
-        attention = spec.halved() if settings.adaptation.injections > 0 else spec
-        bundle = self.__models.adapt(bundle=bundle, spec=attention, settings=settings.adapter)
+        if settings.adapter.mode is not AdapterMode.RESIDUAL:
+            attention = spec.halved() if settings.adaptation.injections > 0 else spec
+            bundle = self.__models.adapt(bundle=bundle, spec=attention, settings=settings.adapter)
+        elif settings.adaptation.injections > 0:
+            raise ConfigurationError(
+                "adaptation.injections requires attention LoRA; use adapter.mode: lor2c."
+            )
         split = self.__data.load(settings=settings.data, seed=settings.seed)
 
         bank = self.__build_bank(bundle_hidden=bundle.hidden, depth=bundle.depth, settings=settings)
@@ -126,7 +131,7 @@ class CausalTrainingService:
     def __build_bank(
         self, *, bundle_hidden: int, depth: int, settings: CausalSettings
     ) -> AdapterBank | None:
-        if settings.adapter.mode is not AdapterMode.LOR2C:
+        if settings.adapter.mode is AdapterMode.BASE:
             return None
         spec = self.__policy.resolve(hidden_size=bundle_hidden)
         generator = torch.Generator().manual_seed(settings.seed)

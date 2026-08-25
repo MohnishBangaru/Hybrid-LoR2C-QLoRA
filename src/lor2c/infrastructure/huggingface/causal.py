@@ -12,6 +12,7 @@ from lor2c.domain.schema import AdapterSpec
 from lor2c.infrastructure.huggingface.compat import TransformersCompatibility
 from lor2c.infrastructure.huggingface.context import HubContext
 from lor2c.infrastructure.huggingface.precision import PrecisionMapper
+from lor2c.infrastructure.repository import DiskRepository
 from lor2c.settings.schema import AdapterSettings, ModelSettings
 
 LOGGER = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ class HubCausalModelPort:
         }
         model = AutoModelForCausalLM.from_pretrained(settings.name, **options)
         model.config.use_cache = False
+        model.requires_grad_(False)
         self.__context.tokenizer()
         return Bundle(
             model=model,
@@ -85,7 +87,12 @@ class HubCausalModelPort:
                 f"Install lor2c[huggingface] to load adapters ({exception})."
             ) from exception
         if not (path / "adapter_config.json").exists():
-            raise ConfigurationError(f"No peft adapter found at {path}.")
+            if (path / DiskRepository.WEIGHTS_FILE).exists():
+                LOGGER.info(
+                    "No attention adapter in run; residual-only", extra={"ctx_path": str(path)}
+                )
+                return bundle
+            raise ConfigurationError(f"No adapter found at {path}.")
         restored = PeftModel.from_pretrained(bundle.model, str(path))
         return Bundle(model=restored, hidden=bundle.hidden, depth=bundle.depth)
 

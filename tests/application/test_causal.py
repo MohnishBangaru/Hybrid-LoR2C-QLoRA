@@ -83,6 +83,19 @@ class TestCausalTrainingService:
         assert outcome.steps == 7
         assert outcome.output == Path("out/unit")
 
+    def test_residual_mode_skips_attention_lora_but_keeps_bank(self) -> None:
+        ports = self.__ports()
+        self.__service(ports=ports).run(settings=self.__settings(mode="residual"))
+        assert ports["models"].specs == []
+        assert ports["router"].routers[0].bank.names == ("floor1", "floor2", "floor3")
+
+    def test_residual_mode_rejects_injections(self) -> None:
+        ports = self.__ports()
+        with pytest.raises(ConfigurationError, match="injections"):
+            self.__service(ports=ports).run(
+                settings=self.__settings(mode="residual", adaptation={"injections": 1})
+            )
+
     def test_base_mode_skips_residual_adapters(self) -> None:
         ports = self.__ports()
         self.__service(ports=ports).run(settings=self.__settings(mode="base"))

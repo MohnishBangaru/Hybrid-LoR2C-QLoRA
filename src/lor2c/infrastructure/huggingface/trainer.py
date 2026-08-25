@@ -9,6 +9,7 @@ from torch import nn
 from lor2c.application.ports import Observer
 from lor2c.application.schema import Bundle, Split, TrainingReport
 from lor2c.domain.exceptions import ConfigurationError
+from lor2c.infrastructure.huggingface.compat import TransformersCompatibility
 from lor2c.infrastructure.huggingface.context import HubContext
 from lor2c.infrastructure.optimizer import GroupedOptimizerFactory
 from lor2c.settings.schema import CausalSettings
@@ -54,7 +55,7 @@ class HubCausalTrainerPort:
                     observer.observe(epoch=float(getattr(state, "epoch", 0.0) or 0.0))
 
         validating = split.validation is not None
-        arguments = TrainingArguments(
+        options = TransformersCompatibility().training_arguments(
             output_dir=str(settings.output / "checkpoints"),
             per_device_train_batch_size=settings.train.micro,
             gradient_accumulation_steps=settings.accumulation,
@@ -73,6 +74,7 @@ class HubCausalTrainerPort:
             report_to="none",
             seed=settings.seed,
         )
+        arguments = TrainingArguments(**options)  # type: ignore[arg-type]
         model = bundle.model
         if settings.train.compile and sys.platform != "win32":
             model = torch.compile(model)  # type: ignore[assignment]

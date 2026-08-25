@@ -9,6 +9,7 @@ from lor2c.application.schema import Bundle
 from lor2c.domain.constants import BaseQuantization
 from lor2c.domain.exceptions import ConfigurationError
 from lor2c.domain.schema import AdapterSpec
+from lor2c.infrastructure.huggingface.compat import TransformersCompatibility
 from lor2c.infrastructure.huggingface.context import HubContext
 from lor2c.infrastructure.huggingface.precision import PrecisionMapper
 from lor2c.settings.schema import AdapterSettings, ModelSettings
@@ -30,13 +31,13 @@ class HubCausalModelPort:
         except ImportError as exception:
             raise ConfigurationError("Install lor2c[huggingface] to load models.") from exception
         dtype = self.__precision.dtype(precision=settings.precision)
-        model = AutoModelForCausalLM.from_pretrained(
-            settings.name,
-            revision=settings.revision,
-            torch_dtype=dtype,
-            device_map=settings.device,
-            quantization_config=self.__quantization(settings=settings, dtype=dtype),
-        )
+        options: dict[str, object] = {
+            "revision": settings.revision,
+            "device_map": settings.device,
+            "quantization_config": self.__quantization(settings=settings, dtype=dtype),
+            TransformersCompatibility().dtype_keyword(): dtype,
+        }
+        model = AutoModelForCausalLM.from_pretrained(settings.name, **options)
         model.config.use_cache = False
         self.__context.tokenizer()
         return Bundle(

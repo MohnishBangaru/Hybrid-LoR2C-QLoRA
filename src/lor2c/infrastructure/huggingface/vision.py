@@ -8,6 +8,7 @@ from torch import nn
 from lor2c.application.schema import Bundle
 from lor2c.domain.exceptions import ConfigurationError
 from lor2c.domain.schema import AdapterSpec
+from lor2c.infrastructure.huggingface.compat import TransformersCompatibility
 from lor2c.infrastructure.huggingface.context import HubContext
 from lor2c.infrastructure.huggingface.precision import PrecisionMapper
 from lor2c.infrastructure.injection import LinearInjector
@@ -38,12 +39,14 @@ class HubVisionModelPort:
             from transformers import AutoModelForVision2Seq
         except ImportError as exception:
             raise ConfigurationError("Install lor2c[huggingface] to load models.") from exception
-        model = AutoModelForVision2Seq.from_pretrained(
-            settings.name,
-            revision=settings.revision,
-            torch_dtype=self.__precision.dtype(precision=settings.precision),
-            device_map=settings.device,
-        )
+        options: dict[str, object] = {
+            "revision": settings.revision,
+            "device_map": settings.device,
+            TransformersCompatibility().dtype_keyword(): self.__precision.dtype(
+                precision=settings.precision
+            ),
+        }
+        model = AutoModelForVision2Seq.from_pretrained(settings.name, **options)
         model.requires_grad_(False)
         text = getattr(model.config, "text_config", model.config)
         return Bundle(

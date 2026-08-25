@@ -1,9 +1,11 @@
 """Caption generation and BLEU scoring."""
 
 import logging
+from collections.abc import Callable
+from typing import cast
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 from torch.amp.autocast_mode import autocast
 
 from lor2c.application.schema import Bundle, EvaluationReport, Loaders
@@ -36,6 +38,7 @@ class BleuEvaluator:
         model = bundle.model
         device = next(model.parameters()).device
         model.eval()
+        generate = cast(Callable[..., Tensor], model.generate)
         references: list[list[list[str]]] = []
         hypotheses: list[list[str]] = []
         with torch.no_grad():
@@ -50,7 +53,7 @@ class BleuEvaluator:
                 with autocast(
                     device_type=device.type, dtype=torch.float16, enabled=device.type == "cuda"
                 ):
-                    generated = model.generate(
+                    generated = generate(
                         **inputs, max_new_tokens=settings.tokens, num_beams=settings.beams
                     )
                 hypothesis = tokenizer.decode(generated[0], skip_special_tokens=True).strip()

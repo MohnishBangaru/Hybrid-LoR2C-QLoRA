@@ -78,6 +78,8 @@ mypy_path = "src"
 packages = ["lor2c"]
 plugins = ["pydantic.mypy"]
 ignore_missing_imports = true
+# torch stubs change between releases; version-specific ignores must not fail the build
+warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

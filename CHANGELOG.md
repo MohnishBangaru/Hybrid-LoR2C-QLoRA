@@ -12,6 +12,13 @@
 - Add `configs/tinyllama_im.yaml` and `configs/tinyllama_qlora.yaml`.
 - Add `lor2c evaluate`: rebuilds a trained run (peft adapter + residual bank from a
   self-describing `manifest.json`) and scores it with EleutherAI lm-eval (`lor2c[evaluate]`).
+- Verified end-to-end on a Colab T4 (transformers 5.x); fixes from that run: Hugging Face
+  datasets accepted by `Split`, transformers v4/v5 compatibility (`group_by_length`, `dtype`,
+  `AutoModelForImageTextToText`), residual bank moved to the model device on attach, injected
+  adapters kept in float32 for AMP, adapters-only saving for non-peft models.
+- Fix SmolVLM captioning: the assistant caption was passed as a plain string and rendered as
+  empty by the chat template (the model learned to emit nothing); label masking now uses the
+  prompt token length; evaluation generates from the user prompt instead of the full sample.
 
 ## 0.1.0 - 2026-08-25
 

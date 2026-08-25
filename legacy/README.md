@@ -19,6 +19,10 @@ Known defects in the legacy code that the package fixes:
   cannot accept floating point input. The package wraps adapters in `QuantStub`/`DeQuantStub`.
 - Hooks pinned tensors to `cuda:0`, breaking multi-GPU device maps and CPU runs.
 - `templates/alpaca.json` had to exist on disk; the template is now a typed constant.
+- `vlm/*.py` passed the assistant caption as a plain string, which current SmolVLM chat templates
+  render as empty, so every training target was `Assistant: <end_of_utterance>`; label masking by
+  decode/re-encode swallowed the caption; and BLEU evaluation generated from the full sample
+  (prompt + reference) rather than from the prompt, so scores were always 0.
 
 Original run instructions (Python 3.10):
 

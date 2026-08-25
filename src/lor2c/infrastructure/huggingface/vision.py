@@ -6,7 +6,6 @@ import torch
 from torch import nn
 
 from lor2c.application.schema import Bundle
-from lor2c.domain.exceptions import ConfigurationError
 from lor2c.domain.schema import AdapterSpec
 from lor2c.infrastructure.huggingface.compat import TransformersCompatibility
 from lor2c.infrastructure.huggingface.context import HubContext
@@ -35,10 +34,7 @@ class HubVisionModelPort:
 
     def load(self, *, settings: ModelSettings) -> Bundle[nn.Module]:
         """Load and freeze the base model."""
-        try:
-            from transformers import AutoModelForVision2Seq
-        except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to load models.") from exception
+        loader = self.__loader()
         options: dict[str, object] = {
             "revision": settings.revision,
             "device_map": settings.device,
@@ -46,7 +42,7 @@ class HubVisionModelPort:
                 precision=settings.precision
             ),
         }
-        model = AutoModelForVision2Seq.from_pretrained(settings.name, **options)
+        model = loader.from_pretrained(settings.name, **options)
         model.requires_grad_(False)
         text = getattr(model.config, "text_config", model.config)
         return Bundle(

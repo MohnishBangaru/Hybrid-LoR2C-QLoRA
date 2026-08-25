@@ -106,7 +106,9 @@ class HubVisionDataPort:
         try:
             from datasets import load_dataset
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to load datasets.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to load datasets ({exception})."
+            ) from exception
         processor = self.__context.processor(image=settings.image)
         holdout = max(1, int(settings.samples * settings.holdout))
         train_rows = load_dataset(settings.path, split=f"train[:{settings.samples}]")

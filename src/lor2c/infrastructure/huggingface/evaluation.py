@@ -33,7 +33,9 @@ class BleuEvaluator:
         try:
             from nltk.translate.bleu_score import SmoothingFunction, corpus_bleu
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[vision] to evaluate BLEU.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[vision] to evaluate BLEU ({exception})."
+            ) from exception
         tokenizer = self.__context.processor(image=self.__image).tokenizer  # type: ignore[attr-defined]
         model = bundle.model
         device = next(model.parameters()).device

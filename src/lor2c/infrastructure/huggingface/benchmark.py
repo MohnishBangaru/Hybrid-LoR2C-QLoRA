@@ -26,7 +26,9 @@ class LmEvalBenchmark:
             from lm_eval import simple_evaluate
             from lm_eval.models.huggingface import HFLM
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[evaluate] to run benchmarks.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[evaluate] to run benchmarks ({exception})."
+            ) from exception
         wrapped = HFLM(
             pretrained=model, tokenizer=self.__context.tokenizer(), batch_size=settings.batch
         )

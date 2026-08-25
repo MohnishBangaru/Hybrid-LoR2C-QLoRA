@@ -29,7 +29,9 @@ class HubCausalModelPort:
         try:
             from transformers import AutoModelForCausalLM
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to load models.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to load models ({exception})."
+            ) from exception
         dtype = self.__precision.dtype(precision=settings.precision)
         options: dict[str, object] = {
             "revision": settings.revision,
@@ -53,7 +55,9 @@ class HubCausalModelPort:
         try:
             from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to apply LoRA.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to apply LoRA ({exception})."
+            ) from exception
         configuration = LoraConfig(
             r=spec.rank,
             lora_alpha=int(spec.alpha),
@@ -77,7 +81,9 @@ class HubCausalModelPort:
         try:
             from peft import PeftModel
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to load adapters.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to load adapters ({exception})."
+            ) from exception
         if not (path / "adapter_config.json").exists():
             raise ConfigurationError(f"No peft adapter found at {path}.")
         restored = PeftModel.from_pretrained(bundle.model, str(path))
@@ -90,7 +96,9 @@ class HubCausalModelPort:
         try:
             from transformers import BitsAndBytesConfig
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to quantize.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to quantize ({exception})."
+            ) from exception
         if settings.quantization is BaseQuantization.INT8:
             eight: object = BitsAndBytesConfig(load_in_8bit=True)
             return eight

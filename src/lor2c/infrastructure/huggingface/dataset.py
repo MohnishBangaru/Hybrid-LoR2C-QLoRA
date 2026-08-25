@@ -26,7 +26,9 @@ class HubCausalDataPort:
         try:
             from datasets import load_dataset
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to load datasets.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to load datasets ({exception})."
+            ) from exception
         if settings.path.endswith(self.LOCAL_SUFFIXES):
             raw = load_dataset("json", data_files=settings.path)
         else:

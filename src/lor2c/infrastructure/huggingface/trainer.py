@@ -43,7 +43,9 @@ class HubCausalTrainerPort:
                 TrainingArguments,
             )
         except ImportError as exception:
-            raise ConfigurationError("Install lor2c[huggingface] to train.") from exception
+            raise ConfigurationError(
+                f"Install lor2c[huggingface] to train ({exception})."
+            ) from exception
 
         class ProgressCallback(TrainerCallback):  # type: ignore[misc]
             """Forwards fractional epoch progress to the application observer."""

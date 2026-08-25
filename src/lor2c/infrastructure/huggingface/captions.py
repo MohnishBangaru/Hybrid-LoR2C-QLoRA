@@ -50,7 +50,7 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
                     {"type": "text", "text": self.__settings.instruction},
                 ],
             },
-            {"role": "assistant", "content": caption},
+            {"role": "assistant", "content": [{"type": "text", "text": caption}]},
         ]
         processor = self.__processor
         prompt = processor.apply_chat_template(  # type: ignore[attr-defined]

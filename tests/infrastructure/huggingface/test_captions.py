@@ -19,7 +19,7 @@ class WordProcessor:
     def apply_chat_template(self, messages, add_generation_prompt, tokenize):
         text = "User: <image> " + messages[0]["content"][1]["text"] + " Assistant:"
         if not add_generation_prompt:
-            text += " " + messages[1]["content"] + " <end>"
+            text += " " + messages[1]["content"][0]["text"] + " <end>"
         return text
 
     def __call__(

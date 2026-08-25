@@ -1,0 +1,27 @@
+# LoR2C fine-tuning of TinyLlama on Alpaca-cleaned (matches the original prototype defaults).
+name: tinyllama-lor2c
+seed: 42
+output: outputs/tinyllama-lor2c
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6
+  precision: float16
+  device: auto
+data:
+  path: yahma/alpaca-cleaned
+  validation: 2000
+  cutoff: 256
+  inputs: true
+adapter:
+  mode: lor2c
+  automatic: true        # rank 4 / alpha 8 for hidden <= 2048, else 16 / 32
+  dropout: 0.05
+  targets: [q_proj, v_proj]
+train:
+  epochs: 3
+  batch: 128
+  micro: 4
+  rate: 0.0003
+  warmup: 100
+  evaluation: 200
+tracking:
+  kind: none

@@ -1,0 +1,25 @@
+# Same run as tinyllama.yaml with quantization-aware training of the residual adapters.
+name: tinyllama-lor2c-qat
+seed: 42
+output: outputs/tinyllama-lor2c-qat
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6
+  precision: float16
+data:
+  path: yahma/alpaca-cleaned
+  validation: 2000
+  cutoff: 256
+adapter:
+  mode: lor2c
+  automatic: true
+  dropout: 0.05
+train:
+  epochs: 3
+  batch: 128
+  micro: 4
+quantization:
+  enabled: true
+  backend: fbgemm        # use qnnpack on ARM hosts
+tracking:
+  kind: wandb
+  project: LoR2C-QLoRA

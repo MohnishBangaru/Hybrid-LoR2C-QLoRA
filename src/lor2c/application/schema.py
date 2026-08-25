@@ -135,4 +135,4 @@ class EvaluationOutcome(BaseModel):
     name: str = Field(description="Run identifier.")
     output: Path = Field(description="Where the scores were written.")
     scores: dict[str, float] = Field(description="Benchmark scores.")
-    trainable: int = Field(ge=0, description="Trainable parameters of the loaded adapters.")
+    adapters: int = Field(ge=0, description="Parameters held by attention and residual adapters.")

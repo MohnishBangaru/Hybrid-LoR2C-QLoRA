@@ -31,6 +31,19 @@ make check                     # CPU sanity: lint, types, 108 unit tests
 
 Or the container: `docker build -t lor2c . && docker run --gpus all -e HF_TOKEN -v $PWD/outputs:/workspace/outputs lor2c causal configs/tinyllama.yaml`.
 
+### Google Colab notes
+
+Verified on a free-tier T4 (Python 3.13, transformers 5.x). Differences from a plain Linux host:
+
+- Colab ships an old `torchao` that the current `peft` rejects; remove it once per runtime:
+  `!pip uninstall -q -y torchao`.
+- The T4 has no bf16; use `precision: float32` for TinyLlama (fits comfortably) or
+  `precision: float16` together with `quantization: nf4`.
+- `%%writefile` must be the very first line of its own cell, or write configs with
+  `open(path, "w").write("""...""")`.
+- Editable install means `git pull` is enough to pick up code changes; no reinstall needed.
+- Pipe verbose runs through `2>&1 | grep -vE '"level": "DEBUG"'` to hide lm-eval task-index logs.
+
 ## 3. Smoke test first (5 minutes)
 
 Before any multi-hour run, prove the whole path works on your host with a tiny slice:

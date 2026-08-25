@@ -75,6 +75,7 @@ class TestEvaluationService:
         assert outcome.scores == {"arc_easy/acc_norm": 0.5}
         written = json.loads((tmp_path / "scores.json").read_text())
         assert written["scores"] == {"arc_easy/acc_norm": 0.5}
+        assert outcome.adapters == sum(p.numel() for p in repository.restored.parameters())
         assert ports["tracker"].metrics[0].values == {"arc_easy/acc_norm": 0.5}
 
     def test_run_without_residual_bank_evaluates_attention_adapter_only(

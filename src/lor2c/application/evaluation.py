@@ -56,27 +56,38 @@ class EvaluationService:
                 "with quantization.enabled: false to benchmark."
             )
         bundle.model.eval()
+        adapters = self.__count(model=bundle.model)
         if manifest is None:
             report = self.__benchmark.run(
                 model=bundle.model, settings=settings.benchmark, seed=settings.seed
             )
         else:
             bank = self.__repository.restore(output=settings.run, manifest=manifest)
+            adapters += sum(parameter.numel() for parameter in bank.parameters())
             router = ResidualRouter(bank=bank, schedule=manifest.schedule)
             with self.__router.attach(model=bundle.model, router=router):
                 report = self.__benchmark.run(
                     model=bundle.model, settings=settings.benchmark, seed=settings.seed
                 )
-        trainable = sum(p.numel() for p in bundle.model.parameters() if p.requires_grad)
         self.__tracker.log(metrics=Metrics(step=0, values=report.scores))
         output = settings.run / self.SCORES_FILE
         output.write_text(
             json.dumps(
-                {"name": settings.name, "trainable": trainable, "scores": report.scores}, indent=2
+                {"name": settings.name, "adapters": adapters, "scores": report.scores}, indent=2
             ),
             encoding="utf-8",
         )
-        LOGGER.info("Evaluation complete", extra={"ctx_scores": report.scores})
-        return EvaluationOutcome(
-            name=settings.name, output=output, scores=report.scores, trainable=trainable
+        LOGGER.info(
+            "Evaluation complete", extra={"ctx_scores": report.scores, "ctx_adapters": adapters}
         )
+        return EvaluationOutcome(
+            name=settings.name, output=output, scores=report.scores, adapters=adapters
+        )
+
+    @staticmethod
+    def __count(*, model: object) -> int:
+        """Parameters belonging to attention adapters (peft names them with `lora_`)."""
+        named = getattr(model, "named_parameters", None)
+        if named is None:
+            return 0
+        return sum(parameter.numel() for name, parameter in named() if "lora_" in name)

@@ -66,6 +66,16 @@ class BleuEvaluator:
                 hypothesis = tokenizer.decode(continuation, skip_special_tokens=True).strip()
                 references.append([reference.split()])
                 hypotheses.append(hypothesis.split())
+                LOGGER.debug(
+                    "Sample",
+                    extra={
+                        "ctx_index": len(hypotheses),
+                        "ctx_prompt": int(prompt.shape[-1]),
+                        "ctx_generated": int(generated.shape[-1]),
+                        "ctx_reference": reference,
+                        "ctx_hypothesis": hypothesis,
+                    },
+                )
         score = float(
             corpus_bleu(references, hypotheses, smoothing_function=SmoothingFunction().method4)
         )

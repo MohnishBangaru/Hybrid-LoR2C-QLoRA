@@ -1,11 +1,11 @@
 """Typed records exchanged between the application layer and its ports."""
 
 from pathlib import Path
-from typing import Generic, TypeVar
+from typing import Generic, Protocol, TypeVar, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from lor2c.domain.schema import AdapterSpec, ResidualSchedule
 
@@ -22,13 +22,26 @@ class Bundle(BaseModel, Generic[ModelType]):
     depth: int = Field(gt=0, description="Number of decoder layers.")
 
 
+@runtime_checkable
+class Rows(Protocol):
+    """Anything sized and indexable by integer: torch datasets, Hugging Face datasets, lists."""
+
+    def __len__(self) -> int:
+        """Number of rows."""
+        ...
+
+    def __getitem__(self, index: int) -> object:
+        """Row at `index`."""
+        ...
+
+
 class Split(BaseModel):
     """Train/validation dataset pair."""
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    train: Dataset[dict[str, object]] = Field(description="Training examples.")
-    validation: Dataset[dict[str, object]] | None = Field(default=None, description="Held-out set.")
+    train: Rows = Field(description="Training examples.")
+    validation: Rows | None = Field(default=None, description="Held-out set.")
 
 
 class Loaders(BaseModel):

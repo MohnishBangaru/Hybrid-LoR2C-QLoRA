@@ -148,6 +148,15 @@ legacy/            original prototype scripts and the patched peft fork they nee
   end-to-end on a GPU host; running `lor2c causal configs/tinyllama.yaml` there is the next
   validation step.
 
+## Results
+
+First controlled comparison (TinyLlama-1.1B, LoRA vs LoR2C vs ShareLoR2C vs IMLoR2C, Colab T4):
+all LoR2C variants converge about twice as fast and reach 3.5% lower validation loss, and
+IMLoR2C does so at LoRA's parameter budget. Full tables, figures and caveats in
+[docs/RESULTS.md](docs/RESULTS.md).
+
+![validation loss vs parameters](docs/assets/results/efficiency.png)
+
 ## Results (research phase)
 
 7B vs 1B comparison from the prototype runs:

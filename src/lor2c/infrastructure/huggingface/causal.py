@@ -5,6 +5,7 @@ import logging
 from torch import nn
 
 from lor2c.application.schema import Bundle
+from lor2c.domain.constants import BaseQuantization
 from lor2c.domain.exceptions import ConfigurationError
 from lor2c.domain.schema import AdapterSpec
 from lor2c.infrastructure.huggingface.context import HubContext
@@ -27,11 +28,13 @@ class HubCausalModelPort:
             from transformers import AutoModelForCausalLM
         except ImportError as exception:
             raise ConfigurationError("Install lor2c[huggingface] to load models.") from exception
+        dtype = self.__precision.dtype(precision=settings.precision)
         model = AutoModelForCausalLM.from_pretrained(
             settings.name,
             revision=settings.revision,
-            torch_dtype=self.__precision.dtype(precision=settings.precision),
+            torch_dtype=dtype,
             device_map=settings.device,
+            quantization_config=self.__quantization(settings=settings, dtype=dtype),
         )
         model.config.use_cache = False
         self.__context.tokenizer()
@@ -56,9 +59,32 @@ class HubCausalModelPort:
             target_modules=list(settings.targets),
             bias="none",
             task_type="CAUSAL_LM",
+            use_rslora=spec.mode.value == "stabilized",
+            use_dora=settings.dora,
         )
-        prepared = prepare_model_for_kbit_training(bundle.model)  # type: ignore[no-untyped-call]
+        prepared = prepare_model_for_kbit_training(  # type: ignore[no-untyped-call]
+            bundle.model, use_gradient_checkpointing=False
+        )
         adapted = get_peft_model(prepared, configuration)
         adapted.print_trainable_parameters()
         LOGGER.info("Applied LoRA", extra={"ctx_rank": spec.rank, "ctx_targets": settings.targets})
         return Bundle(model=adapted, hidden=bundle.hidden, depth=bundle.depth)
+
+    @staticmethod
+    def __quantization(*, settings: ModelSettings, dtype: object) -> object | None:
+        if settings.quantization is BaseQuantization.NONE:
+            return None
+        try:
+            from transformers import BitsAndBytesConfig
+        except ImportError as exception:
+            raise ConfigurationError("Install lor2c[huggingface] to quantize.") from exception
+        if settings.quantization is BaseQuantization.INT8:
+            eight: object = BitsAndBytesConfig(load_in_8bit=True)
+            return eight
+        four: object = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=dtype,
+        )
+        return four

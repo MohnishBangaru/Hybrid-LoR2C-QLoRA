@@ -1,0 +1,31 @@
+# IMLoR2C: LoR2C with MergeLoR2C + InjectLoR2C events during the first quarter of training,
+# rank-stabilised scaling and a LoRA+ learning-rate ratio. Paper: arXiv 2503.00572.
+name: tinyllama-imlor2c
+seed: 42
+output: outputs/tinyllama-imlor2c
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6
+  precision: bfloat16
+data:
+  path: yahma/alpaca-cleaned
+  validation: 2000
+  cutoff: 256
+adapter:
+  mode: lor2c
+  automatic: true
+  dropout: 0.05
+  scaling: stabilized   # rsLoRA: alpha / sqrt(r)
+  ratio: 16             # LoRA+: up/B projections learn 16x faster
+  dora: true            # DoRA on the attention LoRA (peft)
+adaptation:
+  merges: 4             # MergeLoR2C: merge the 4 adjacent pairs with the least information (min SFS)
+  injections: 4         # InjectLoR2C: replace the 4 adapters with the least information (min SFS)
+  top: 2                # k in SFS = 1 - top_k/total; omit to use rank // 2
+  span: 4               # a merged adapter may cover at most 4 layers
+train:
+  epochs: 3
+  batch: 128
+  micro: 4
+  rate: 0.0003
+tracking:
+  kind: none

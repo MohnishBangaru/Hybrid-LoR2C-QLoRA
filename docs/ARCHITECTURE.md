@@ -41,6 +41,28 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
    `LayerLocator` and delegates to the router; hooks are removed when the context exits.
 5. Attention LoRA on `q_proj`/`v_proj` is applied by `peft` (`HubCausalModelPort.adapt`) and is
    independent of the residual bank.
+6. `HookRouter.attach` also registers the bank as `model.lor2c` so any optimizer built from
+   `model.parameters()` trains the residual adapters; the attribute is removed on exit.
+
+## IMLoR2C (merge / inject)
+
+- `FeatureSpaceShape` (domain) computes SFS = `1 - top_k / total` over the singular values of
+  `up @ down`; low SFS means the update is concentrated in few directions (low information).
+- `AdaptationPlanner` (domain) merges the adjacent pair with the minimum combined SFS, keeping
+  the weights of the member with the higher SFS, and injects the single-layer adapter with the
+  minimum SFS; `AdaptationTimeline` spreads the events over the first quarter of training
+  (`epochs / 4 / count` interval). When injections are scheduled the attention LoRA is created
+  at half the LoR2C rank, as in the paper.
+- `AdaptationController` (application) observes fractional epoch progress through the
+  `Observer` port, mutates the `ResidualSchedule` (immutable value object, replaced via
+  `ResidualRouter.reschedule`), re-keys the bank, and asks the `AttentionGate` port to release the
+  attention LoRA of an injected layer. The Hugging Face adapter forwards `TrainerCallback.on_step_end`
+  to the observer.
+- Injection requires the attention LoRA to start frozen (`AttentionGate.freeze`), matching the
+  reference `LoRAFreezeCallback`.
+- Scoring direction: this package follows the paper. The reference implementation instead
+  merges the pair with the minimum `top_k/total` (the opposite direction) and copies weights from
+  the lower member; those deviations are not reproduced here.
 
 ## Ports
 
@@ -54,6 +76,8 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
 | `Repository` | `DiskRepository` | `model/` (peft or trainable state) + `residual/` |
 | `Tracker` | `LogTracker`, `WandbTracker` | selected by `tracking.kind` |
 | `Seeder` | `TorchSeeder` | Python + torch generators |
+| `Observer` | `AdaptationController` (application) | fed by a `TrainerCallback` |
+| `AttentionGate` | `PatternAttentionGate` | parameter-name based freeze/release |
 | `VisionModelPort` | `HubVisionModelPort` | `AutoModelForVision2Seq` + `LinearInjector` |
 | `VisionDataPort` | `HubVisionDataPort` | `CaptionDataset` |
 | `VisionTrainerPort` | `TorchVisionTrainerPort` | AMP loop with warmup schedule |

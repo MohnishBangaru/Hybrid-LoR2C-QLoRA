@@ -34,3 +34,5 @@ class TestSettingsLoader:
         root = Path(__file__).resolve().parents[2] / "configs"
         SettingsLoader().load(path=root / "tinyllama.yaml", schema=CausalSettings)
         SettingsLoader().load(path=root / "tinyllama_qat.yaml", schema=CausalSettings)
+        SettingsLoader().load(path=root / "tinyllama_im.yaml", schema=CausalSettings)
+        SettingsLoader().load(path=root / "tinyllama_qlora.yaml", schema=CausalSettings)

@@ -10,6 +10,7 @@ from lor2c.domain.masking import LabelMasker
 from lor2c.domain.prompt import PromptTemplate
 from lor2c.domain.rank import FixedRankPolicy, RankPolicy, WidthRankPolicy
 from lor2c.domain.schema import AdapterSpec
+from lor2c.infrastructure.gate import PatternAttentionGate
 from lor2c.infrastructure.hooks import HookRouter, ModuleListLocator
 from lor2c.infrastructure.huggingface.captions import HubVisionDataPort
 from lor2c.infrastructure.huggingface.causal import HubCausalModelPort
@@ -48,6 +49,7 @@ class ServiceFactory:
             tracker=self.__tracker(settings=settings.tracking),
             seeder=TorchSeeder(),
             policy=self.__policy(settings=settings.adapter),
+            gate=PatternAttentionGate(),
         )
 
     def vision(self, *, settings: VisionSettings) -> VisionTrainingService:
@@ -65,7 +67,10 @@ class ServiceFactory:
                 context=context, normalizer=CaptionNormalizer(), seed=settings.seed
             ),
             trainer=TorchVisionTrainerPort(
-                settings=settings.train, epochs=settings.train.epochs, tracker=tracker
+                settings=settings.train,
+                epochs=settings.train.epochs,
+                tracker=tracker,
+                ratio=settings.adapter.ratio,
             ),
             evaluator=BleuEvaluator(context=context, image=settings.data.image),
             repository=DiskRepository(),
@@ -89,8 +94,13 @@ class ServiceFactory:
     @staticmethod
     def __policy(*, settings: AdapterSettings) -> RankPolicy:
         if settings.automatic:
-            return WidthRankPolicy(dropout=settings.dropout)
-        spec = AdapterSpec(rank=settings.rank, alpha=settings.alpha, dropout=settings.dropout)
+            return WidthRankPolicy(dropout=settings.dropout, mode=settings.scaling)
+        spec = AdapterSpec(
+            rank=settings.rank,
+            alpha=settings.alpha,
+            dropout=settings.dropout,
+            mode=settings.scaling,
+        )
         return FixedRankPolicy(spec=spec)
 
 

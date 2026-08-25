@@ -40,7 +40,9 @@ Hook = Callable[[nn.Module, tuple[Tensor, ...], Output], Output]
 
 
 class HookRouter:
-    """Registers one forward hook per decoder layer that delegates to the router."""
+    """Registers one forward hook per decoder layer and exposes the bank as a model submodule."""
+
+    ATTRIBUTE = "lor2c"
 
     def __init__(self, *, locator: LayerLocator) -> None:
         self.__locator = locator
@@ -54,6 +56,9 @@ class HookRouter:
                 f"Model exposes {len(layers)} decoder layers but the schedule expects "
                 f"{router.schedule.depth}."
             )
+        if hasattr(model, self.ATTRIBUTE):
+            raise ScheduleError(f"Model already has an attribute named '{self.ATTRIBUTE}'.")
+        model.add_module(self.ATTRIBUTE, router.bank)
         handles: list[RemovableHandle] = []
         try:
             for index, layer in enumerate(layers):
@@ -62,6 +67,7 @@ class HookRouter:
         finally:
             for handle in handles:
                 handle.remove()
+            delattr(model, self.ATTRIBUTE)
             router.reset()
 
     @staticmethod

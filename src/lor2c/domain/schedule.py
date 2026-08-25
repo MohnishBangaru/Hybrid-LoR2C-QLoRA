@@ -28,6 +28,14 @@ class ResidualRouter:
         """The routing plan this router executes."""
         return self.__schedule
 
+    def reschedule(self, *, schedule: ResidualSchedule) -> None:
+        """Swap the routing plan between optimisation steps; pending deltas are discarded."""
+        if schedule.depth != self.__schedule.depth:
+            raise ScheduleError("A replacement schedule must keep the same depth.")
+        self.__schedule = schedule
+        self.__pending.clear()
+        self.__validate()
+
     @property
     def bank(self) -> AdapterBank:
         """The adapters this router reads from."""

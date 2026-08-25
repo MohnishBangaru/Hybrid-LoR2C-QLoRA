@@ -66,3 +66,14 @@ class TestHookRouter:
             hooks.attach(model=decoder, router=router),
         ):
             pass
+
+    def test_bank_parameters_are_visible_to_the_model_while_attached(
+        self, decoder: TinyDecoder, width: int, depth: int
+    ) -> None:
+        router = self.__router(width=width, depth=depth, fill=0.0)
+        before = sum(p.numel() for p in decoder.parameters())
+        with HookRouter(locator=ModuleListLocator()).attach(model=decoder, router=router):
+            during = sum(p.numel() for p in decoder.parameters())
+            assert during == before + sum(p.numel() for p in router.bank.parameters())
+            assert "lor2c.adapters.floor1.down.weight" in dict(decoder.named_parameters())
+        assert sum(p.numel() for p in decoder.parameters()) == before

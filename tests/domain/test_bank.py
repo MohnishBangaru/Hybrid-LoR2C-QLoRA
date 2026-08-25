@@ -30,3 +30,25 @@ class TestAdapterBank:
         bank.register(name="floor1", spec=AdapterSpec(rank=2, alpha=4))
         bank.register(name="floor2", spec=AdapterSpec(rank=2, alpha=4))
         assert sum(p.numel() for p in bank.parameters()) == 2 * (8 * 2 + 2 * 8)
+
+    def test_shared_down_projection_is_one_module(self) -> None:
+        spec = AdapterSpec(rank=2, alpha=4)
+        bank = AdapterBank(width=8, shared=spec)
+        first = bank.register(name="floor1", spec=spec)
+        second = bank.register(name="floor2", spec=spec)
+        assert first.down is second.down is bank.down  # type: ignore[union-attr]
+        assert sum(p.numel() for p in bank.parameters()) == 8 * 2 + 2 * (2 * 8)
+
+    def test_shared_bank_rejects_mismatched_rank(self) -> None:
+        bank = AdapterBank(width=8, shared=AdapterSpec(rank=2, alpha=4))
+        with pytest.raises(AdapterError, match="shared projection"):
+            bank.register(name="floor1", spec=AdapterSpec(rank=4, alpha=4))
+
+    def test_rename_and_remove(self) -> None:
+        bank = AdapterBank(width=8)
+        adapter = bank.register(name="floor1", spec=AdapterSpec(rank=2, alpha=4))
+        bank.register(name="floor2", spec=AdapterSpec(rank=2, alpha=4))
+        bank.rename(old="floor1", new="floor1+floor2")
+        bank.remove(name="floor2")
+        assert bank.names == ("floor1+floor2",)
+        assert bank.get(name="floor1+floor2") is adapter

@@ -11,6 +11,7 @@ from torch.amp.grad_scaler import GradScaler
 from lor2c.application.ports import Tracker
 from lor2c.application.schema import Bundle, EpochReport, Loaders, Metrics
 from lor2c.domain.exceptions import ConfigurationError
+from lor2c.infrastructure.optimizer import GroupedOptimizerFactory
 from lor2c.settings.schema import VisionTrainSettings
 
 LOGGER = logging.getLogger(__name__)
@@ -19,10 +20,13 @@ LOGGER = logging.getLogger(__name__)
 class TorchVisionTrainerPort:
     """Owns optimizer, scheduler and scaler; trains one epoch per call."""
 
-    def __init__(self, *, settings: VisionTrainSettings, epochs: int, tracker: Tracker) -> None:
+    def __init__(
+        self, *, settings: VisionTrainSettings, epochs: int, tracker: Tracker, ratio: float = 1.0
+    ) -> None:
         self.__settings = settings
         self.__epochs = epochs
         self.__tracker = tracker
+        self.__ratio = ratio
         self.__optimizer: torch.optim.Optimizer | None = None
         self.__scheduler: torch.optim.lr_scheduler.LambdaLR | None = None
         self.__scaler: GradScaler | None = None
@@ -81,8 +85,9 @@ class TorchVisionTrainerPort:
             from transformers import get_linear_schedule_with_warmup
         except ImportError as exception:
             raise ConfigurationError("Install lor2c[huggingface] to train.") from exception
-        parameters = [p for p in model.parameters() if p.requires_grad]
-        optimizer = torch.optim.AdamW(parameters, lr=self.__settings.rate)
+        optimizer = GroupedOptimizerFactory(rate=self.__settings.rate, ratio=self.__ratio).build(
+            model=model
+        )
         total = self.__epochs * steps
         scheduler: torch.optim.lr_scheduler.LambdaLR = get_linear_schedule_with_warmup(
             optimizer,

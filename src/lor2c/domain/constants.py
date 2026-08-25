@@ -28,6 +28,21 @@ class QuantizationBackend(StrEnum):
     QNNPACK = "qnnpack"
 
 
+class Scaling(StrEnum):
+    """How the adapter output is scaled from alpha and rank."""
+
+    STANDARD = "standard"
+    STABILIZED = "stabilized"
+
+
+class BaseQuantization(StrEnum):
+    """Weight quantization applied to the frozen base model at load time."""
+
+    NONE = "none"
+    INT8 = "int8"
+    NF4 = "nf4"
+
+
 class TrackerKind(StrEnum):
     """Experiment tracking backend."""
 
@@ -51,7 +66,15 @@ class Rank(IntEnum):
     LARGE_ALPHA = 32
 
 
+class Adaptation(IntEnum):
+    """Constants governing the merge/inject schedule of IMLoR2C."""
+
+    ACTIVE_FRACTION_DENOMINATOR = 4
+    INJECTED_RANK_DIVISOR = 2
+
+
 KAIMING_NEGATIVE_SLOPE: Final[float] = math.sqrt(5)
+MERGED_NAME_SEPARATOR: Final[str] = "+"
 RESIDUAL_ADAPTER_PREFIX: Final[str] = "floor"
 CAPTION_NUMERIC_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\s*\d+(\.\d+)*\s*[:.\-\u2013]?\s*")
 

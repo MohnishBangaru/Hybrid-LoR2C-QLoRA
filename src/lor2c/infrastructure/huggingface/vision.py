@@ -18,6 +18,13 @@ from lor2c.settings.schema import AdapterSettings, ModelSettings
 LOGGER = logging.getLogger(__name__)
 
 
+class Geometry(Protocol):
+    """Configuration fields describing the language decoder."""
+
+    hidden_size: int
+    num_hidden_layers: int
+
+
 class Loadable(Protocol):
     """Auto classes exposing `from_pretrained`."""
 
@@ -54,12 +61,9 @@ class HubVisionModelPort:
         }
         model = loader.from_pretrained(settings.name, **options)
         model.requires_grad_(False)
-        text = getattr(model.config, "text_config", model.config)
-        return Bundle(
-            model=model,
-            hidden=int(text.hidden_size),
-            depth=int(text.num_hidden_layers),
-        )
+        configuration: object = model.config
+        text = cast(Geometry, getattr(configuration, "text_config", configuration))
+        return Bundle(model=model, hidden=int(text.hidden_size), depth=int(text.num_hidden_layers))
 
     @staticmethod
     def __loader() -> Loadable:

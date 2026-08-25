@@ -113,3 +113,16 @@ for exactly this comparison; the next run should add it to the matrix.
 1. Add `residual` to the matrix at r = 4 and compare against LoRA at equal parameters.
 2. Rerun the matrix at 1 epoch, full benchmark sets, three seeds; report mean and standard error.
 3. LLaMA-2-7B with `configs/llama2_7b_im.yaml` on an A100 to compare with the paper's Table II.
+
+## Appendix: figures as produced in the notebook
+
+The charts above were regenerated from `summary.csv` for the repository; these are the
+unmodified figures saved by the Colab notebook (`logs/*.png` in the results archive).
+
+![notebook training loss](assets/results/colab/train_loss.png)
+
+![notebook validation loss](assets/results/colab/eval_loss.png)
+
+![notebook benchmarks](assets/results/colab/benchmarks.png)
+
+![notebook efficiency (mean accuracy vs parameters)](assets/results/colab/efficiency.png)

@@ -1,0 +1,38 @@
+# Paper setup (arXiv 2503.00572, Table II): LLaMA-2-7B on Alpaca-cleaned, LoR2C rank 8,
+# LoRA rank 4 after injection, lr 3e-4, batch 128, 3 epochs. Needs a 24 GB+ GPU with nf4,
+# or 40 GB+ without quantization. Gated model: set HF_TOKEN.
+name: llama2-7b-imlor2c
+seed: 42
+output: outputs/llama2-7b-imlor2c
+model:
+  name: meta-llama/Llama-2-7b-hf
+  precision: bfloat16
+  quantization: nf4        # set to none to match the paper exactly (fp16 base)
+data:
+  path: yahma/alpaca-cleaned
+  validation: 2000
+  cutoff: 256
+adapter:
+  mode: lor2c
+  automatic: false
+  rank: 8
+  alpha: 16
+  dropout: 0.05
+  targets: [q_proj, v_proj]
+  scaling: standard        # paper uses alpha / r
+  ratio: 1                 # paper uses a single learning rate
+  dora: false
+adaptation:
+  merges: 4
+  injections: 4
+  span: 4
+train:
+  epochs: 3
+  batch: 128
+  micro: 4
+  rate: 0.0003
+  warmup: 100
+  evaluation: 200
+tracking:
+  kind: wandb
+  project: LoR2C-QLoRA

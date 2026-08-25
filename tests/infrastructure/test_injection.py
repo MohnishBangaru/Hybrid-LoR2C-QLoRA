@@ -34,3 +34,13 @@ class TestLinearInjector:
             LinearInjector().inject(
                 model=decoder, targets=("k_proj",), spec=AdapterSpec(rank=2, alpha=4)
             )
+
+    def test_adapters_stay_float32_on_half_precision_base(self, decoder: TinyDecoder) -> None:
+        decoder.half()
+        LinearInjector().inject(
+            model=decoder, targets=("q_proj",), spec=AdapterSpec(rank=2, alpha=4)
+        )
+        adapter = decoder.layers[0].q_proj.adapter  # type: ignore[union-attr]
+        assert adapter.down.weight.dtype == torch.float32
+        hidden = torch.randn(2, decoder.layers[0].q_proj.base.in_features).half()  # type: ignore[union-attr]
+        assert decoder.layers[0].q_proj(hidden).dtype == torch.float16

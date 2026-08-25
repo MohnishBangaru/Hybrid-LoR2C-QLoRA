@@ -58,6 +58,7 @@ class HookRouter:
             )
         if hasattr(model, self.ATTRIBUTE):
             raise ScheduleError(f"Model already has an attribute named '{self.ATTRIBUTE}'.")
+        router.bank.to(next(layers[0].parameters()).device)
         model.add_module(self.ATTRIBUTE, router.bank)
         handles: list[RemovableHandle] = []
         try:

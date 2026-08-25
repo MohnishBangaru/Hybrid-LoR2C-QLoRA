@@ -1,8 +1,11 @@
 """Use-case: fine-tune a causal language model with LoR2C residual adapters."""
 
 import torch
+from torch import nn
 
+from lor2c.application.adaptation import AdaptationController
 from lor2c.application.ports import (
+    AttentionGate,
     CausalDataPort,
     CausalModelPort,
     CausalTrainerPort,
@@ -12,12 +15,15 @@ from lor2c.application.ports import (
     Seeder,
     Tracker,
 )
-from lor2c.application.schema import Outcome
+from lor2c.application.schema import Bundle, Outcome
+from lor2c.domain.adaptation import AdaptationPlanner, AdaptationTimeline
 from lor2c.domain.bank import AdapterBank
 from lor2c.domain.constants import AdapterMode
+from lor2c.domain.exceptions import ConfigurationError
 from lor2c.domain.rank import RankPolicy
 from lor2c.domain.schedule import ResidualRouter
 from lor2c.domain.schema import ResidualSchedule
+from lor2c.domain.spectrum import FeatureSpaceShape
 from lor2c.settings.schema import CausalSettings
 
 
@@ -36,6 +42,7 @@ class CausalTrainingService:
         tracker: Tracker,
         seeder: Seeder,
         policy: RankPolicy,
+        gate: AttentionGate,
     ) -> None:
         self.__models = models
         self.__data = data
@@ -46,6 +53,7 @@ class CausalTrainingService:
         self.__tracker = tracker
         self.__seeder = seeder
         self.__policy = policy
+        self.__gate = gate
 
     def run(self, *, settings: CausalSettings) -> Outcome:
         """Execute the full fine-tuning workflow described by `settings`."""
@@ -72,12 +80,38 @@ class CausalTrainingService:
         router = ResidualRouter(bank=bank, schedule=schedule)
         if settings.quantization.enabled:
             self.__quantizer.prepare(bank=bank)
+        controller = self.__controller(bundle=bundle, router=router, settings=settings)
         with self.__router.attach(model=bundle.model, router=router):
-            report = self.__trainer.fit(bundle=bundle, split=split, settings=settings)
+            report = self.__trainer.fit(
+                bundle=bundle, split=split, settings=settings, observer=controller
+            )
         if settings.quantization.enabled:
             self.__quantizer.convert(bank=bank)
         self.__repository.save(model=bundle.model, bank=bank, output=settings.output)
         return Outcome(name=settings.name, output=settings.output, steps=report.steps)
+
+    def __controller(
+        self, *, bundle: Bundle[nn.Module], router: ResidualRouter, settings: CausalSettings
+    ) -> AdaptationController | None:
+        if not settings.adaptation.active:
+            return None
+        if settings.adaptation.injections > 0:
+            self.__gate.freeze(model=bundle.model)
+        if settings.quantization.enabled:
+            raise ConfigurationError(
+                "adaptation (merge/inject) cannot be combined with quantization-aware training; "
+                "quantized adapters cannot be re-scored or re-keyed."
+            )
+        epochs = settings.train.epochs
+        return AdaptationController(
+            router=router,
+            model=bundle.model,
+            gate=self.__gate,
+            planner=AdaptationPlanner(span=settings.adaptation.span),
+            spectrum=FeatureSpaceShape(top=settings.adaptation.top),
+            merges=AdaptationTimeline(epochs=epochs, count=settings.adaptation.merges),
+            injections=AdaptationTimeline(epochs=epochs, count=settings.adaptation.injections),
+        )
 
     def __build_bank(
         self, *, bundle_hidden: int, depth: int, settings: CausalSettings
@@ -86,7 +120,7 @@ class CausalTrainingService:
             return None
         spec = self.__policy.resolve(hidden_size=bundle_hidden)
         generator = torch.Generator().manual_seed(settings.seed)
-        bank = AdapterBank(width=bundle_hidden)
+        bank = AdapterBank(width=bundle_hidden, shared=spec if settings.adapter.shared else None)
         for entry in ResidualSchedule.per_layer(depth=depth).entries:
             bank.register(name=entry.name, spec=spec, generator=generator)
         return bank

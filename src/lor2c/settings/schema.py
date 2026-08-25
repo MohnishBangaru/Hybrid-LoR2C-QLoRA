@@ -4,7 +4,14 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from lor2c.domain.constants import AdapterMode, Precision, QuantizationBackend, TrackerKind
+from lor2c.domain.constants import (
+    AdapterMode,
+    BaseQuantization,
+    Precision,
+    QuantizationBackend,
+    Scaling,
+    TrackerKind,
+)
 
 
 class Strict(BaseModel):
@@ -20,6 +27,9 @@ class ModelSettings(Strict):
     revision: str | None = Field(default=None, description="Optional git revision on the hub.")
     precision: Precision = Field(default=Precision.FLOAT16, description="Load/compute precision.")
     device: str = Field(default="auto", description="Device map passed to the loader.")
+    quantization: BaseQuantization = Field(
+        default=BaseQuantization.NONE, description="Frozen-weight quantization (QLoRA uses nf4)."
+    )
 
 
 class AdapterSettings(Strict):
@@ -35,6 +45,28 @@ class AdapterSettings(Strict):
     automatic: bool = Field(
         default=True, description="Derive rank/alpha from model width instead of using rank/alpha."
     )
+    scaling: Scaling = Field(
+        default=Scaling.STANDARD, description="alpha/r or rsLoRA alpha/sqrt(r)."
+    )
+    shared: bool = Field(
+        default=False, description="ShareLoR2C: one down projection for all layers."
+    )
+    dora: bool = Field(default=False, description="Use DoRA for the attention LoRA (peft).")
+    ratio: float = Field(default=1.0, ge=1, description="LoRA+ learning-rate multiplier for up/B.")
+
+
+class AdaptationSettings(Strict):
+    """IMLoR2C schedule: how many residual adapters to merge or inject during training."""
+
+    merges: int = Field(default=0, ge=0, description="MergeLoR2C: adjacent pairs to merge.")
+    injections: int = Field(default=0, ge=0, description="InjectLoR2C: adapters to swap for LoRA.")
+    top: int | None = Field(default=None, gt=0, description="Top-k singular values for SFS.")
+    span: int = Field(default=4, ge=2, description="Maximum layers one merged adapter may cover.")
+
+    @property
+    def active(self) -> bool:
+        """Whether any merge or injection is scheduled."""
+        return self.merges > 0 or self.injections > 0
 
 
 class TrackingSettings(Strict):
@@ -97,6 +129,7 @@ class CausalSettings(Strict):
     model: ModelSettings
     data: CausalDataSettings
     adapter: AdapterSettings = Field(default_factory=AdapterSettings)
+    adaptation: AdaptationSettings = Field(default_factory=AdaptationSettings)
     train: CausalTrainSettings = Field(default_factory=CausalTrainSettings)
     quantization: QuantizationSettings = Field(default_factory=QuantizationSettings)
     tracking: TrackingSettings = Field(default_factory=TrackingSettings)

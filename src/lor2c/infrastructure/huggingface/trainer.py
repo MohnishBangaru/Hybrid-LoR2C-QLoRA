@@ -6,9 +6,11 @@ import sys
 import torch
 from torch import nn
 
+from lor2c.application.ports import Observer
 from lor2c.application.schema import Bundle, Split, TrainingReport
 from lor2c.domain.exceptions import ConfigurationError
 from lor2c.infrastructure.huggingface.context import HubContext
+from lor2c.infrastructure.optimizer import GroupedOptimizerFactory
 from lor2c.settings.schema import CausalSettings
 
 LOGGER = logging.getLogger(__name__)
@@ -24,13 +26,33 @@ class HubCausalTrainerPort:
         self.__context = context
 
     def fit(
-        self, *, bundle: Bundle[nn.Module], split: Split, settings: CausalSettings
+        self,
+        *,
+        bundle: Bundle[nn.Module],
+        split: Split,
+        settings: CausalSettings,
+        observer: Observer | None = None,
     ) -> TrainingReport:
         """Train and return the number of optimisation steps performed."""
         try:
-            from transformers import DataCollatorForSeq2Seq, Trainer, TrainingArguments
+            from transformers import (
+                DataCollatorForSeq2Seq,
+                Trainer,
+                TrainerCallback,
+                TrainingArguments,
+            )
         except ImportError as exception:
             raise ConfigurationError("Install lor2c[huggingface] to train.") from exception
+
+        class ProgressCallback(TrainerCallback):  # type: ignore[misc]
+            """Forwards fractional epoch progress to the application observer."""
+
+            def on_step_end(
+                self, args: object, state: object, control: object, **kwargs: object
+            ) -> None:
+                if observer is not None:
+                    observer.observe(epoch=float(getattr(state, "epoch", 0.0) or 0.0))
+
         validating = split.validation is not None
         arguments = TrainingArguments(
             output_dir=str(settings.output / "checkpoints"),
@@ -54,6 +76,9 @@ class HubCausalTrainerPort:
         model = bundle.model
         if settings.train.compile and sys.platform != "win32":
             model = torch.compile(model)  # type: ignore[assignment]
+        optimizer = GroupedOptimizerFactory(
+            rate=settings.train.rate, ratio=settings.adapter.ratio
+        ).build(model=model)
         trainer = Trainer(
             model=model,
             args=arguments,
@@ -62,6 +87,8 @@ class HubCausalTrainerPort:
             data_collator=DataCollatorForSeq2Seq(
                 self.__context.tokenizer(), pad_to_multiple_of=self.PAD_MULTIPLE, padding=True
             ),
+            optimizers=(optimizer, None),
+            callbacks=[ProgressCallback()],
         )
         resume = str(settings.resume) if settings.resume else None
         result = trainer.train(resume_from_checkpoint=resume)

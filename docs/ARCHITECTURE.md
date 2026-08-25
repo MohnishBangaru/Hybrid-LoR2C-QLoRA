@@ -41,6 +41,23 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
    `LayerLocator` and delegates to the router; hooks are removed when the context exits.
 5. Attention LoRA on `q_proj`/`v_proj` is applied by `peft` (`HubCausalModelPort.adapt`) and is
    independent of the residual bank.
+6. `HookRouter.attach` also registers the bank as `model.lor2c` so any optimizer built from
+   `model.parameters()` trains the residual adapters; the attribute is removed on exit.
+
+## IMLoR2C (merge / inject)
+
+- `FeatureSpaceShape` (domain) scores each adapter by the spectrum of `up @ down` (top-k share or
+  mean singular value, as in the reference implementation).
+- `AdaptationPlanner` (domain) picks the least concentrated adjacent pair to merge and the most
+  concentrated single-layer adapter to inject; `AdaptationTimeline` spreads the events over the
+  first quarter of training (`epochs / 4 / count` interval).
+- `AdaptationController` (application) observes fractional epoch progress through the
+  `Observer` port, mutates the `ResidualSchedule` (immutable value object, replaced via
+  `ResidualRouter.reschedule`), re-keys the bank, and asks the `AttentionGate` port to release the
+  attention LoRA of an injected layer. The Hugging Face adapter forwards `TrainerCallback.on_step_end`
+  to the observer.
+- Injection requires the attention LoRA to start frozen (`AttentionGate.freeze`), matching the
+  reference `LoRAFreezeCallback`.
 
 ## Ports
 
@@ -54,6 +71,8 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
 | `Repository` | `DiskRepository` | `model/` (peft or trainable state) + `residual/` |
 | `Tracker` | `LogTracker`, `WandbTracker` | selected by `tracking.kind` |
 | `Seeder` | `TorchSeeder` | Python + torch generators |
+| `Observer` | `AdaptationController` (application) | fed by a `TrainerCallback` |
+| `AttentionGate` | `PatternAttentionGate` | parameter-name based freeze/release |
 | `VisionModelPort` | `HubVisionModelPort` | `AutoModelForVision2Seq` + `LinearInjector` |
 | `VisionDataPort` | `HubVisionDataPort` | `CaptionDataset` |
 | `VisionTrainerPort` | `TorchVisionTrainerPort` | AMP loop with warmup schedule |

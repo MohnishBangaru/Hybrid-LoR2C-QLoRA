@@ -28,6 +28,20 @@ quantization and converted to int8 kernels at the end. The rank is chosen automa
 model width (`r=4, alpha=8` up to 2048 hidden units, `r=16, alpha=32` above) unless fixed in the
 config.
 
+The paper's variants ([arXiv 2503.00572](https://arxiv.org/abs/2503.00572)) are all available:
+
+| Variant | Config | Mechanism |
+|---|---|---|
+| ShareLoR2C | `adapter.shared: true` | one down projection `A` shared by every layer, per-layer `B` |
+| MergeLoR2C | `adaptation.merges: N` | the adjacent pair with the least concentrated spectrum (SFS) is merged into one adapter spanning both layers |
+| InjectLoR2C | `adaptation.injections: N` | the most concentrated single-layer adapter is removed and that layer's attention LoRA is unfrozen |
+| IMLoR2C | both | merge + inject, spread over the first quarter of training |
+
+Modern LoRA practice is layered on top: `model.quantization: nf4` loads the frozen base in 4-bit
+(QLoRA), `adapter.scaling: stabilized` applies rsLoRA scaling `alpha/sqrt(r)`, `adapter.ratio`
+gives the up/`B` projections a higher learning rate (LoRA+), and `adapter.dora: true` switches the
+attention LoRA to DoRA.
+
 ## Install
 
 Python 3.11 or newer.
@@ -46,6 +60,8 @@ needed (it is archived under `legacy/`).
 ```bash
 lor2c causal configs/tinyllama.yaml       # LoR2C + LoRA on TinyLlama / Alpaca-cleaned
 lor2c causal configs/tinyllama_qat.yaml   # same, with QAT on the residual adapters
+lor2c causal configs/tinyllama_im.yaml    # IMLoR2C: merge + inject events, rsLoRA, LoRA+, DoRA
+lor2c causal configs/tinyllama_qlora.yaml # NF4 4-bit base (QLoRA) + LoR2C + DoRA
 lor2c vision configs/smolvlm.yaml         # low-rank adapters on SmolVLM anime captions
 lor2c -v causal configs/tinyllama.yaml    # debug logging
 lor2c --help
@@ -68,10 +84,11 @@ with a clear error. The main sections:
 | Section | Keys | Notes |
 |---|---|---|
 | top level | `name`, `seed`, `output`, `resume` | `output` receives `checkpoints/`, `model/`, `residual/` |
-| `model` | `name`, `revision`, `precision`, `device` | `precision`: `float16` / `bfloat16` / `float32` |
+| `model` | `name`, `revision`, `precision`, `device`, `quantization` | `quantization`: `none` / `int8` / `nf4` (QLoRA) |
 | `data` (causal) | `path`, `validation`, `cutoff`, `inputs`, `eos` | hub dataset or local `.json`/`.jsonl` |
 | `data` (vision) | `path`, `samples`, `holdout`, `length`, `image`, `instruction` | |
-| `adapter` | `mode`, `automatic`, `rank`, `alpha`, `dropout`, `targets` | `mode`: `lor2c` or `base` (LoRA only) |
+| `adapter` | `mode`, `automatic`, `rank`, `alpha`, `dropout`, `targets`, `scaling`, `shared`, `dora`, `ratio` | `scaling: stabilized` = rsLoRA; `shared` = ShareLoR2C; `ratio` = LoRA+ |
+| `adaptation` (causal) | `merges`, `injections`, `top`, `span` | MergeLoR2C / InjectLoR2C events (IMLoR2C) |
 | `train` | `epochs`, `batch`, `micro`, `rate`, `warmup`, ... | `batch` must be a multiple of `micro` |
 | `quantization` | `enabled`, `backend` | `fbgemm` (x86) or `qnnpack` (ARM) |
 | `evaluation` (vision) | `beams`, `tokens`, `patience` | BLEU-based early stopping |

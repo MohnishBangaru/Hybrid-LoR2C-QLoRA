@@ -32,17 +32,27 @@ class LowRankAdapter(Branch):
         output_width: int,
         spec: AdapterSpec,
         generator: torch.Generator | None = None,
+        down: nn.Linear | None = None,
     ) -> None:
         super().__init__()
         self.spec = spec
-        self.down = nn.Linear(input_width, spec.rank, bias=False)
+        self.shared = down is not None
+        self.down = down if down is not None else nn.Linear(input_width, spec.rank, bias=False)
         self.up = nn.Linear(spec.rank, output_width, bias=False)
         self.dropout: nn.Module = nn.Dropout(spec.dropout) if spec.dropout > 0 else nn.Identity()
         self.__reset(generator=generator)
 
     def __reset(self, *, generator: torch.Generator | None) -> None:
-        nn.init.kaiming_uniform_(self.down.weight, a=KAIMING_NEGATIVE_SLOPE, generator=generator)
+        if not self.shared:
+            nn.init.kaiming_uniform_(
+                self.down.weight, a=KAIMING_NEGATIVE_SLOPE, generator=generator
+            )
         nn.init.zeros_(self.up.weight)
+
+    @property
+    def product(self) -> Tensor:
+        """The effective update matrix `up @ down` scaled, shape (output, input)."""
+        return (self.up.weight @ self.down.weight) * self.spec.scaling
 
     @property
     def dtype(self) -> torch.dtype:

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Fix: the residual `AdapterBank` is now registered on the host model while hooks are attached,
+  so the trainer's optimizer actually updates the LoR2C adapters.
+- Add the paper's variants: ShareLoR2C (`adapter.shared`), MergeLoR2C and InjectLoR2C
+  (`adaptation.merges` / `adaptation.injections`) driven by the SFS spectral score.
+- Add QLoRA base quantization (`model.quantization: nf4|int8`), rsLoRA scaling
+  (`adapter.scaling: stabilized`), LoRA+ learning-rate ratio (`adapter.ratio`) and DoRA on the
+  attention LoRA (`adapter.dora`).
+- Add `configs/tinyllama_im.yaml` and `configs/tinyllama_qlora.yaml`.
+
 ## 0.1.0 - 2026-08-25
 
 - Restructured the repository into an installable `lor2c` package with domain, application,

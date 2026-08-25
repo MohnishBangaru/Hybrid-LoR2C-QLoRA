@@ -1,0 +1,27 @@
+# Hybrid LoR2C + QLoRA: 4-bit NF4 frozen base (bitsandbytes), bf16 compute, LoR2C residual
+# adapters plus DoRA attention LoRA. Requires a CUDA host with lor2c[huggingface] installed.
+name: tinyllama-lor2c-qlora
+seed: 42
+output: outputs/tinyllama-lor2c-qlora
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6
+  precision: bfloat16
+  quantization: nf4
+data:
+  path: yahma/alpaca-cleaned
+  validation: 2000
+  cutoff: 256
+adapter:
+  mode: lor2c
+  automatic: true
+  dropout: 0.05
+  scaling: stabilized
+  ratio: 16
+  dora: true
+train:
+  epochs: 3
+  batch: 128
+  micro: 4
+  rate: 0.0002
+tracking:
+  kind: none

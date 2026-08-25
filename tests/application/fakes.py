@@ -97,13 +97,32 @@ class FakeTrainer:
     def __init__(self) -> None:
         self.attached_during_fit: bool | None = None
         self.router_probe: RecordingRouter | None = None
+        self.observer: object | None = None
 
     def fit(
-        self, *, bundle: Bundle[nn.Module], split: Split, settings: CausalSettings
+        self,
+        *,
+        bundle: Bundle[nn.Module],
+        split: Split,
+        settings: CausalSettings,
+        observer: object | None = None,
     ) -> TrainingReport:
         if self.router_probe is not None:
             self.attached_during_fit = self.router_probe.attached
+        self.observer = observer
         return TrainingReport(steps=7, loss=1.5)
+
+
+class RecordingGate:
+    def __init__(self) -> None:
+        self.frozen = 0
+        self.released: list[int] = []
+
+    def freeze(self, *, model: nn.Module) -> None:
+        self.frozen += 1
+
+    def release(self, *, model: nn.Module, layer: int) -> None:
+        self.released.append(layer)
 
 
 class FakeVisionTrainer:

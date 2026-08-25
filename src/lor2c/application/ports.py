@@ -86,13 +86,38 @@ class CausalDataPort(Protocol):
         ...
 
 
+class Observer(Protocol):
+    """Receives training progress so structural adaptations can be scheduled."""
+
+    def observe(self, *, epoch: float) -> None:
+        """Called after every optimisation step with fractional epoch progress."""
+        ...
+
+
 class CausalTrainerPort(Protocol):
     """Runs the optimisation loop for a causal model."""
 
     def fit(
-        self, *, bundle: Bundle[nn.Module], split: Split, settings: CausalSettings
+        self,
+        *,
+        bundle: Bundle[nn.Module],
+        split: Split,
+        settings: CausalSettings,
+        observer: Observer | None = None,
     ) -> TrainingReport:
         """Train and return a summary."""
+        ...
+
+
+class AttentionGate(Protocol):
+    """Controls which attention LoRA parameters are trainable, per decoder layer."""
+
+    def freeze(self, *, model: nn.Module) -> None:
+        """Freeze every attention LoRA parameter."""
+        ...
+
+    def release(self, *, model: nn.Module, layer: int) -> None:
+        """Make the attention LoRA parameters of `layer` trainable."""
         ...
 
 

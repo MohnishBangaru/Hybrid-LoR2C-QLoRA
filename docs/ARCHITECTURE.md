@@ -58,6 +58,10 @@ decoder layer i:   x_i ──► block_i ──► h_i ──(+)──► h'_i
   to the observer.
 - Injection requires the attention LoRA to start frozen (`AttentionGate.freeze`), matching the
   reference `LoRAFreezeCallback`.
+- Scoring direction: the paper writes SFS as `1 - top_k/total` and merges the pair with the
+  minimum SFS sum; the reference code computes the proportion `top_k/total` and merges the pair
+  with the minimum proportion sum (injecting the maximum). This package follows the reference
+  code, which produced the published numbers.
 
 ## Ports
 

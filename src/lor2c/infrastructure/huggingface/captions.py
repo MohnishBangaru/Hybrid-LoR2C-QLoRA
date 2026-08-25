@@ -43,7 +43,7 @@ class CaptionDataset(Dataset[dict[str, Tensor]]):
         row = self.__rows[index]  # type: ignore[index]
         image = self.__resize(image=row[self.IMAGE].convert("RGB"))
         caption = self.__normalizer.normalize(text=row[self.TEXT])
-        messages = [
+        messages: list[dict[str, object]] = [
             {
                 "role": "user",
                 "content": [

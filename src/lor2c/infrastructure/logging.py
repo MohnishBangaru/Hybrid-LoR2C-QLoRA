@@ -26,10 +26,12 @@ class JsonFormatter(logging.Formatter):
 
 
 class LoggingConfigurator:
-    """Installs the JSON formatter on the root logger exactly once."""
+    """Installs the JSON formatter on the root logger and quiets chatty third-party loggers."""
+
+    NOISY = ("httpx", "httpcore", "urllib3", "huggingface_hub", "filelock", "numexpr", "datasets")
 
     def configure(self, *, level: int = logging.INFO) -> None:
-        """Route all logs to stderr as JSON lines at `level`."""
+        """Route all logs to stderr as JSON lines at `level`; third parties log warnings only."""
         root = logging.getLogger()
         for handler in list(root.handlers):
             root.removeHandler(handler)
@@ -37,3 +39,5 @@ class LoggingConfigurator:
         handler.setFormatter(JsonFormatter())
         root.addHandler(handler)
         root.setLevel(level)
+        for name in self.NOISY:
+            logging.getLogger(name).setLevel(logging.WARNING)

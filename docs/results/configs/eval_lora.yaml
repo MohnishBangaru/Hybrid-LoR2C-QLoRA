@@ -1,0 +1,14 @@
+name: lora-eval
+run: outputs/lora
+seed: 42
+model:
+  name: TinyLlama/TinyLlama-1.1B-Chat-v0.6
+  precision: float32
+benchmark:
+  tasks:
+  - arc_easy
+  - hellaswag
+  - piqa
+  shots: 0
+  limit: 200
+  batch: 8

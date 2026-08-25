@@ -11,6 +11,7 @@ class TransformersCompatibility:
 
     LEGACY_DTYPE_KEYWORD = "torch_dtype"
     DTYPE_KEYWORD = "dtype"
+    DTYPE_KEYWORD_SINCE = (4, 56)
 
     def training_arguments(self, **arguments: object) -> dict[str, object]:
         """Drop `TrainingArguments` keys unknown to the installed version, logging each drop."""
@@ -26,12 +27,10 @@ class TransformersCompatibility:
         return accepted
 
     def dtype_keyword(self) -> str:
-        """`dtype` on releases that accept it, `torch_dtype` on older ones."""
-        import inspect
+        """`dtype` from transformers 4.56 onwards, `torch_dtype` on older releases."""
+        import transformers
 
-        from transformers import PreTrainedModel
-
-        parameters = inspect.signature(PreTrainedModel.from_pretrained).parameters
-        if self.DTYPE_KEYWORD in parameters:
+        major, minor = (int(part) for part in transformers.__version__.split(".")[:2])
+        if (major, minor) >= self.DTYPE_KEYWORD_SINCE:
             return self.DTYPE_KEYWORD
         return self.LEGACY_DTYPE_KEYWORD
